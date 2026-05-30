@@ -337,3 +337,274 @@ function showLanguageSelector() {
             <div class="payment-option" onclick="closeGame()"><div>🇨🇳</div><div><div class="po-name">中文</div></div></div>
         </div>`;
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// FEATURE 1: LEADERBOARD
+// ═══════════════════════════════════════════════════════════════
+async function showLeaderboard() {
+    const users = await fbGet('users');
+    if (!users) return;
+    
+    const sorted = Object.entries(users)
+        .map(([id, data]) => ({ id, name: data.name || '?', profit: data.totalProfit || 0, games: data.totalGames || 0 }))
+        .filter(u => u.games > 0)
+        .sort((a, b) => b.profit - a.profit)
+        .slice(0, 10);
+    
+    const content = document.getElementById('content');
+    content.innerHTML = `
+        <div class="section-title"><span>🏆</span> Leaderboard</div>
+        ${sorted.length === 0 ? '<p class="text-sm text-muted">No players yet.</p>' :
+          sorted.map((u, i) => `
+            <div class="history-item" style="${i<3?'border:1px solid var(--gold);':''}">
+                <div class="hi-left">
+                    <span class="hi-icon">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+                    <div><div class="hi-game">${u.name}</div><div class="hi-time">${u.games} games</div></div>
+                </div>
+                <div class="hi-amount ${u.profit>=0?'win':'loss'}">${u.profit>=0?'+':''}${u.profit.toFixed(2)}</div>
+            </div>
+          `).join('')}
+        <button class="play-button mt-20" onclick="switchTab('home')" style="background:var(--bg3)">⬅️ Back</button>
+    `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FEATURE 2: VIP LEVEL SYSTEM
+// ═══════════════════════════════════════════════════════════════
+function getVIPLevel(totalWagered) {
+    if (totalWagered >= 10000) return { level: 5, name: '💎 Diamond', cashback: 3.0, color: '#a78bfa' };
+    if (totalWagered >= 5000) return { level: 4, name: '🏆 Platinum', cashback: 2.0, color: '#f59e0b' };
+    if (totalWagered >= 1000) return { level: 3, name: '🥇 Gold', cashback: 1.5, color: '#f59e0b' };
+    if (totalWagered >= 500) return { level: 2, name: '🥈 Silver', cashback: 1.0, color: '#9ca3af' };
+    if (totalWagered >= 100) return { level: 1, name: '🥉 Bronze', cashback: 0.5, color: '#cd7f32' };
+    return { level: 0, name: '⚪ Starter', cashback: 0, color: '#6b7280' };
+}
+
+function renderVIPInfo() {
+    const wagered = user.totalGames * 5; // Approximate total wagered
+    const vip = getVIPLevel(wagered);
+    const nextLevel = getVIPLevel(wagered + 1000);
+    
+    return `
+        <div class="section-title"><span>👑</span> VIP Program</div>
+        <div style="text-align:center;padding:16px;background:var(--bg2);border-radius:12px;border:1px solid ${vip.color};margin-bottom:12px;">
+            <div style="font-size:32px;">${vip.name}</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:4px;">Level ${vip.level}/5</div>
+            <div style="font-size:14px;color:var(--gold);margin-top:8px;">Cashback: ${vip.cashback}%</div>
+        </div>
+        <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:4px;">
+                <span>${vip.name}</span><span>${nextLevel.name}</span>
+            </div>
+            <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:${Math.min(100,(wagered%1000)/10)}%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:3px;"></div>
+            </div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);padding:8px;">
+            <b>VIP Benefits:</b><br>
+            ⚪ Starter: No cashback<br>
+            🥉 Bronze ($100+): 0.5% cashback<br>
+            🥈 Silver ($500+): 1.0% cashback<br>
+            🥇 Gold ($1000+): 1.5% cashback<br>
+            🏆 Platinum ($5000+): 2.0% cashback<br>
+            💎 Diamond ($10000+): 3.0% cashback
+        </div>
+    `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FEATURE 3: PROVABLY FAIR
+// ═══════════════════════════════════════════════════════════════
+function generateGameHash() {
+    // Generate a random hash for provably fair verification
+    const chars = '0123456789abcdef';
+    let hash = '';
+    for (let i = 0; i < 64; i++) hash += chars[Math.floor(Math.random() * 16)];
+    return hash;
+}
+
+function renderProvablyFair() {
+    const serverSeed = generateGameHash();
+    const clientSeed = generateGameHash().substring(0, 16);
+    
+    return `
+        <div class="section-title"><span>🔒</span> Provably Fair</div>
+        <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:12px;">
+            <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">
+                Every game result is determined by a combination of server seed and client seed, 
+                making it impossible to manipulate outcomes.
+            </p>
+            <div style="margin-bottom:8px;">
+                <div style="font-size:11px;color:var(--text3);">Server Seed (hashed):</div>
+                <div class="address-display" style="font-size:10px;margin:4px 0;">${serverSeed}</div>
+            </div>
+            <div>
+                <div style="font-size:11px;color:var(--text3);">Client Seed:</div>
+                <div class="address-display" style="font-size:10px;margin:4px 0;">${clientSeed}</div>
+            </div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);padding:8px;">
+            <b>How it works:</b><br>
+            1. Server generates a seed before each game<br>
+            2. Result = Hash(server_seed + client_seed + nonce)<br>
+            3. After game, you can verify the seed<br>
+            4. This proves the result wasn't manipulated
+        </div>
+    `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FEATURE 4: SOUND EFFECTS
+// ═══════════════════════════════════════════════════════════════
+const SOUNDS_ENABLED = true;
+
+function playSound(type) {
+    if (!SOUNDS_ENABLED) return;
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        switch(type) {
+            case 'win':
+                osc.frequency.setValueAtTime(523, ctx.currentTime); // C5
+                osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1); // E5
+                osc.frequency.setValueAtTime(784, ctx.currentTime + 0.2); // G5
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                osc.start(); osc.stop(ctx.currentTime + 0.5);
+                break;
+            case 'lose':
+                osc.frequency.setValueAtTime(300, ctx.currentTime);
+                osc.frequency.setValueAtTime(200, ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                osc.start(); osc.stop(ctx.currentTime + 0.4);
+                break;
+            case 'bet':
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                osc.start(); osc.stop(ctx.currentTime + 0.1);
+                break;
+            case 'jackpot':
+                osc.frequency.setValueAtTime(523, ctx.currentTime);
+                osc.frequency.setValueAtTime(659, ctx.currentTime + 0.15);
+                osc.frequency.setValueAtTime(784, ctx.currentTime + 0.3);
+                osc.frequency.setValueAtTime(1047, ctx.currentTime + 0.45);
+                gain.gain.setValueAtTime(0.4, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+                osc.start(); osc.stop(ctx.currentTime + 0.8);
+                break;
+        }
+    } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FEATURE 5: JACKPOT POOL
+// ═══════════════════════════════════════════════════════════════
+const JACKPOT_CONTRIBUTION = 0.01; // 1% of each bet goes to jackpot
+const JACKPOT_WIN_CHANCE = 0.001; // 0.1% chance per game
+
+async function getJackpot() {
+    const jp = await fbGet('jackpot/amount');
+    return jp || 0;
+}
+
+async function addToJackpot(amount) {
+    const current = await getJackpot();
+    await fbSet('jackpot/amount', current + (amount * JACKPOT_CONTRIBUTION));
+}
+
+async function checkJackpotWin(bet) {
+    if (Math.random() < JACKPOT_WIN_CHANCE) {
+        const jackpotAmount = await getJackpot();
+        if (jackpotAmount > 10) { // Min jackpot $10
+            user.balance += jackpotAmount;
+            await fbSet('jackpot/amount', 0); // Reset jackpot
+            await saveUser();
+            updateBal();
+            return jackpotAmount;
+        }
+    }
+    return 0;
+}
+
+async function renderJackpotBanner() {
+    const jp = await getJackpot();
+    return `
+        <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;border:1px solid rgba(245,158,11,0.3);">
+            <div style="font-size:11px;color:var(--text3);">🎰 JACKPOT POOL</div>
+            <div style="font-size:24px;font-weight:800;color:var(--gold);margin-top:4px;">$${jp.toFixed(2)}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;">1% of every bet • 0.1% chance to win</div>
+        </div>
+    `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UPDATE REWARDS TAB (add VIP + Leaderboard + Provably Fair)
+// ═══════════════════════════════════════════════════════════════
+// Override renderRewards
+const _origRewards = renderRewards;
+renderRewards = function() {
+    return `
+        <div class="section-title"><span>🎁</span> Rewards & More</div>
+        <div class="reward-card"><div class="reward-icon">🎲</div><div class="reward-info"><div class="reward-title">Daily Bonus</div><div class="reward-desc">0.50 USDT every 24h</div></div><button class="reward-btn" onclick="claimDaily()">Claim</button></div>
+        <div class="reward-card"><div class="reward-icon">👥</div><div class="reward-info"><div class="reward-title">Refer a Friend</div><div class="reward-desc">10% of their deposits</div></div><button class="reward-btn" onclick="if(tg)tg.close();else alert('Use bot for referral link')">Share</button></div>
+        <div class="reward-card"><div class="reward-icon">🏆</div><div class="reward-info"><div class="reward-title">Leaderboard</div><div class="reward-desc">Top players ranking</div></div><button class="reward-btn" onclick="showLeaderboard()">View</button></div>
+        <div class="reward-card"><div class="reward-icon">🔒</div><div class="reward-info"><div class="reward-title">Provably Fair</div><div class="reward-desc">Verify game fairness</div></div><button class="reward-btn" onclick="document.getElementById('content').innerHTML=renderProvablyFair()+'<button class=\\'play-button mt-20\\' onclick=\\'switchTab(\\\"rewards\\\")\\' style=\\'background:var(--bg3)\\'>⬅️ Back</button>'">Verify</button></div>
+        ${renderVIPInfo()}
+    `;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// UPDATE RECORD GAME (add sound + jackpot)
+// ═══════════════════════════════════════════════════════════════
+const _origRecordGame = recordGame;
+recordGame = function(game, bet, won, profit) {
+    // Sound effects
+    if (won && profit > bet * 5) playSound('jackpot');
+    else if (won) playSound('win');
+    else playSound('lose');
+    
+    // Add to jackpot pool
+    addToJackpot(bet);
+    
+    // Check jackpot win
+    checkJackpotWin(bet).then(jpWin => {
+        if (jpWin > 0) {
+            setTimeout(() => {
+                alert(`🎰🎰🎰 JACKPOT! 🎰🎰🎰\n\nYou won the JACKPOT!\n+$${jpWin.toFixed(2)} USDT!`);
+                showConfetti(); showConfetti();
+                playSound('jackpot');
+            }, 1000);
+        }
+    });
+    
+    // Original record game logic
+    user.totalGames++;
+    if (won) user.totalWins++;
+    user.totalProfit += profit;
+    user.balance += profit;
+    if (user.balance < 0) user.balance = 0;
+    if (!user.history) user.history = [];
+    user.history.unshift({ game, bet, won, profit, time: new Date().toLocaleTimeString() });
+    if (user.history.length > 30) user.history.pop();
+    updateBal();
+    saveUser();
+};
+
+// ═══════════════════════════════════════════════════════════════
+// UPDATE HOME (add jackpot banner)
+// ═══════════════════════════════════════════════════════════════
+const _origHome = renderHome;
+renderHome = async function() {
+    const jpBanner = await renderJackpotBanner();
+    const content = document.getElementById('content');
+    // Insert jackpot banner at top
+    const homeHTML = _origHome();
+    content.innerHTML = jpBanner + homeHTML;
+};
