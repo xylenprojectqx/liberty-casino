@@ -3,12 +3,12 @@ const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
 // === CONFIG ===
-const ADMIN_ID = 8885409517; // Your Telegram ID
+const ADMIN_ID = '8885409517'; // Your Telegram ID (string)
 
 // === USER DATA ===
-const currentUserId = tg?.initDataUnsafe?.user?.id || 0;
+const currentUserId = String(tg?.initDataUnsafe?.user?.id || 0);
 const currentUserName = tg?.initDataUnsafe?.user?.first_name || 'Player';
-const isAdmin = (currentUserId == ADMIN_ID); // == not === (handles string/number)
+const isAdmin = (currentUserId === ADMIN_ID);
 
 // === DATABASE (localStorage based - shared across all users on same device) ===
 // In production you'd use a backend, but for Mini App this works per-device
@@ -218,14 +218,26 @@ function renderProfile() {
         <div class="profile-header">
             <div class="profile-avatar">🎮</div>
             <div class="profile-name">${user.name}</div>
-            <div class="profile-id">ID: ${currentUserId}</div>
+            <div class="profile-id">ID: ${currentUserId} ${currentUserId === ADMIN_ID ? '(ADMIN)' : ''}</div>
         </div>
         <div class="stats-grid">
             <div class="stat-card"><div class="sv">${user.totalGames}</div><div class="sl">Games</div></div>
             <div class="stat-card"><div class="sv">${wr}%</div><div class="sl">Win Rate</div></div>
             <div class="stat-card"><div class="sv">${user.totalProfit.toFixed(1)}</div><div class="sl">Profit</div></div>
         </div>
+        <div class="mt-20" style="text-align:center;">
+            <button class="play-button" onclick="forceAdmin()" style="background:var(--bg3);font-size:12px;padding:10px;">🔐 Admin Access</button>
+        </div>
     `;
+}
+
+function forceAdmin() {
+    const pin = prompt('Enter Admin PIN:');
+    if (pin === '8885') {
+        document.getElementById('content').innerHTML = renderAdminPanel();
+    } else {
+        alert('❌ Wrong PIN');
+    }
 }
 
 // === ADMIN PANEL (Only for ADMIN_ID) ===
