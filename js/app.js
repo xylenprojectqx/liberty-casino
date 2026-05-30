@@ -69,7 +69,19 @@ async function loadUser() {
 async function saveUser() {
     if (!currentUserId) return;
     user.name = currentUserName;
-    await fbSet(`users/${currentUserId}`, user);
+    try {
+        await fetch(`${DB_URL}/users/${currentUserId}.json`, { 
+            method: 'PUT', 
+            body: JSON.stringify(user),
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch(e) { 
+        console.error('Save failed, retrying...', e);
+        // Retry once after 1 second
+        setTimeout(async () => {
+            try { await fetch(`${DB_URL}/users/${currentUserId}.json`, { method: 'PUT', body: JSON.stringify(user), headers: { 'Content-Type': 'application/json' } }); } catch(e2) {}
+        }, 1000);
+    }
 }
 
 // === INIT ===
@@ -91,7 +103,7 @@ function updateBal() {
 }
 
 // === RECORD GAME ===
-async function recordGame(game, bet, won, profit) {
+function recordGame(game, bet, won, profit) {
     user.totalGames++;
     if (won) user.totalWins++;
     user.totalProfit += profit;
@@ -101,7 +113,8 @@ async function recordGame(game, bet, won, profit) {
     user.history.unshift({ game, bet, won, profit, time: new Date().toLocaleTimeString() });
     if (user.history.length > 30) user.history.pop();
     updateBal();
-    await saveUser();
+    // Save to Firebase in background (don't await)
+    saveUser();
 }
 
 // === TAB SWITCHING ===

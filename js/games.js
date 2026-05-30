@@ -59,7 +59,8 @@ function getBet(id) {
     if (user.balance <= 0) { alert('No balance! Please deposit.'); return null; }
     user.balance -= v;
     if (user.balance < 0) user.balance = 0;
-    save(); updateBal();
+    updateBal();
+    saveUser(); // Save immediately
     return v;
 }
 
