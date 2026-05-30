@@ -8,7 +8,7 @@ const ADMIN_ID = 8885409517; // Your Telegram ID
 // === USER DATA ===
 const currentUserId = tg?.initDataUnsafe?.user?.id || 0;
 const currentUserName = tg?.initDataUnsafe?.user?.first_name || 'Player';
-const isAdmin = currentUserId === ADMIN_ID;
+const isAdmin = (currentUserId == ADMIN_ID); // == not === (handles string/number)
 
 // === DATABASE (localStorage based - shared across all users on same device) ===
 // In production you'd use a backend, but for Mini App this works per-device
@@ -102,7 +102,7 @@ function switchTab(tab) {
         case 'games': content.innerHTML = renderGames(); break;
         case 'wallet': content.innerHTML = renderWallet(); break;
         case 'rewards': content.innerHTML = renderRewards(); break;
-        case 'profile': content.innerHTML = isAdmin ? renderAdminPanel() : renderProfile(); break;
+        case 'profile': content.innerHTML = renderProfile(); break;
     }
     updateBal();
 }
@@ -210,6 +210,9 @@ function claimDaily() {
 
 // === PROFILE (Normal User) ===
 function renderProfile() {
+    // If admin, show admin panel
+    if (isAdmin) return renderAdminPanel();
+    
     const wr = user.totalGames > 0 ? ((user.totalWins/user.totalGames)*100).toFixed(1) : '0.0';
     return `
         <div class="profile-header">
