@@ -56,7 +56,10 @@ function getBet(id) {
     const v = parseFloat(document.getElementById(`${id}-bet`)?.value);
     if (!v || v <= 0) { alert('Enter a valid bet!'); return null; }
     if (v > user.balance) { alert('Insufficient balance!'); return null; }
-    user.balance -= v; save(); updateBal();
+    if (user.balance <= 0) { alert('No balance! Please deposit.'); return null; }
+    user.balance -= v;
+    if (user.balance < 0) user.balance = 0;
+    save(); updateBal();
     return v;
 }
 
