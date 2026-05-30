@@ -66,16 +66,16 @@ function loadGameUI(id) {
 // === BET UI COMPONENT ===
 function betUI(id) {
     return `<div class="bet-container">
-        <div class="bet-label">BET AMOUNT</div>
+        <div class="bet-label">BET AMOUNT <span style="color:var(--text3);font-size:10px;">(Min $1 • Max $500)</span></div>
         <div class="bet-input-wrap">
-            <input type="number" id="${id}-bet" value="1" min="0.1" step="0.1">
+            <input type="number" id="${id}-bet" value="1" min="1" max="500" step="0.5">
             <div class="bet-quick">
-                <button onclick="document.getElementById('${id}-bet').value='0.5'">0.5</button>
-                <button onclick="document.getElementById('${id}-bet').value='1'">1</button>
-                <button onclick="document.getElementById('${id}-bet').value='5'">5</button>
-                <button onclick="document.getElementById('${id}-bet').value='10'">10</button>
-                <button onclick="document.getElementById('${id}-bet').value=(user.balance/2).toFixed(2)">½</button>
-                <button onclick="document.getElementById('${id}-bet').value=user.balance.toFixed(2)">MAX</button>
+                <button onclick="document.getElementById('${id}-bet').value='1'">$1</button>
+                <button onclick="document.getElementById('${id}-bet').value='5'">$5</button>
+                <button onclick="document.getElementById('${id}-bet').value='10'">$10</button>
+                <button onclick="document.getElementById('${id}-bet').value='50'">$50</button>
+                <button onclick="document.getElementById('${id}-bet').value=Math.min(500,user.balance/2).toFixed(2)">½</button>
+                <button onclick="document.getElementById('${id}-bet').value=Math.min(500,user.balance).toFixed(2)">MAX</button>
             </div>
         </div>
     </div>`;
@@ -84,6 +84,8 @@ function betUI(id) {
 function getBet(id) {
     const v = parseFloat(document.getElementById(`${id}-bet`)?.value);
     if (!v || v <= 0) { alert('Enter a valid bet!'); return null; }
+    if (v < 1) { alert('Minimum bet: $1.00'); return null; }
+    if (v > 500) { alert('Maximum bet: $500.00'); return null; }
     if (v > user.balance) { alert('Insufficient balance!'); return null; }
     if (user.balance <= 0) { alert('No balance! Please deposit.'); return null; }
     user.balance -= v;
