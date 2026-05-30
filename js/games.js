@@ -1,35 +1,26 @@
-// === LIBERTY CASINO - Premium Games Engine ===
-const EDGE = 0.05;
+// === LIBERTY CASINO - Premium Games Engine v3 ===
+const EDGE = 0.03;
+
+// === RTP Rates (Real Casino Standards) ===
+const RTP = { coinflip: 0.97, dice: 0.97, slots: 0.96, mines: 0.97, crash: 0.96, plinko: 0.97, wheel: 0.95, hilo: 0.97, keno: 0.95, roulette: 0.973, limbo: 0.97, tower: 0.97 };
+const CF_MULTI = 1.98;
+const DICE_RTP = 0.97;
 
 // === EFFECTS ===
 function showConfetti() {
-    const container = document.createElement('div');
-    container.className = 'confetti-container';
-    document.body.appendChild(container);
-    const colors = ['#f59e0b','#10b981','#8b5cf6','#ef4444','#3b82f6','#ec4899'];
-    for (let i = 0; i < 50; i++) {
-        const piece = document.createElement('div');
-        piece.className = 'confetti-piece';
-        piece.style.left = Math.random() * 100 + '%';
-        piece.style.background = colors[Math.floor(Math.random()*colors.length)];
-        piece.style.animationDelay = Math.random() * 2 + 's';
-        piece.style.animationDuration = (2 + Math.random()*2) + 's';
-        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
-        piece.style.width = (6 + Math.random()*8) + 'px';
-        piece.style.height = (6 + Math.random()*8) + 'px';
-        container.appendChild(piece);
+    const c = document.createElement('div'); c.className = 'confetti-container'; document.body.appendChild(c);
+    const colors = ['#f59e0b','#10b981','#8b5cf6','#ef4444','#3b82f6','#ec4899','#14b8a6'];
+    for (let i = 0; i < 60; i++) {
+        const p = document.createElement('div'); p.className = 'confetti-piece';
+        p.style.cssText = `left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*7)]};animation-delay:${Math.random()*2}s;animation-duration:${2+Math.random()*2}s;width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;border-radius:${Math.random()>0.5?'50%':'2px'};`;
+        c.appendChild(p);
     }
-    setTimeout(() => container.remove(), 4000);
+    setTimeout(() => c.remove(), 4000);
 }
+function showWinResult(amount) { return `<div class="win-banner glow-green"><div class="wb-label">🎉 YOU WIN!</div><div class="wb-amount">+${amount.toFixed(2)} USDT</div></div>`; }
+function showLoseResult(amount) { return `<div class="lose-banner"><div class="wb-label">Better luck next time</div><div class="wb-amount">-${amount.toFixed(2)} USDT</div></div>`; }
 
-function showWinResult(amount) {
-    return `<div class="win-banner glow-green"><div class="wb-label">🎉 YOU WIN!</div><div class="wb-amount">+${amount.toFixed(2)} USDT</div></div>`;
-}
-
-function showLoseResult(amount) {
-    return `<div class="lose-banner"><div class="wb-label">Better luck next time</div><div class="wb-amount">-${amount.toFixed(2)} USDT</div></div>`;
-}
-
+// === GAMES LIST ===
 const gamesList = [
     { id: 'coinflip', name: 'Coin Flip', icon: '🪙', mult: '1.98x • 97%', coming: false },
     { id: 'dice', name: 'Dice Roll', icon: '🎲', mult: 'Custom • 97%', coming: false },
@@ -63,7 +54,7 @@ function loadGameUI(id) {
     }
 }
 
-// === BET UI COMPONENT ===
+// === BET UI ===
 function betUI(id) {
     return `<div class="bet-container">
         <div class="bet-label">BET AMOUNT <span style="color:var(--text3);font-size:10px;">(Min $1 • Max $500)</span></div>
@@ -91,332 +82,245 @@ function getBet(id) {
     user.balance -= v;
     if (user.balance < 0) user.balance = 0;
     updateBal();
-    saveUser(); // Save immediately
+    saveUser();
     return v;
 }
 
-// === RTP (Return to Player) - Real Casino Standards ===
-// Stake.com / Real casino RTP rates
-const RTP = {
-    coinflip: 0.97,    // 97% RTP - pays 1.98x (house edge 3%)
-    dice: 0.97,        // 97% RTP
-    slots: 0.96,       // 96% RTP (industry standard)
-    mines: 0.97,       // 97% RTP
-    crash: 0.96,       // 96% RTP
-    plinko: 0.97,      // 97% RTP
-    wheel: 0.95,       // 95% RTP
-    hilo: 0.97,        // 97% RTP
-    keno: 0.95,        // 95% RTP
-    roulette: 0.973,   // 97.3% RTP (European)
-    limbo: 0.97,       // 97% RTP
-    tower: 0.97,       // 97% RTP
-};
 
-// Coin flip multiplier: 1.98x (real Stake.com rate)
-const CF_MULTI = 1.98;
-// Dice base RTP
-const DICE_RTP = 0.97;
-
-
-// ═══════════════════════════════════════════
-// 1. COIN FLIP - Premium 3D Animated
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 1. COIN FLIP — 3D Animated Gold Coin
+// ═══════════════════════════════════════════════════════════════
+let cfChoice = null;
 function renderCoinFlip(body) {
+    cfChoice = null;
     body.innerHTML = `
-        <div class="result-area" style="position:relative;">
-            <div class="pulse-ring" id="cf-ring" style="display:none;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
-            <div class="coin-3d" id="cf-coin">🪙</div>
+        <div style="text-align:center;padding:20px 0;">
+            <div style="position:relative;display:inline-block;">
+                <div class="pulse-ring" id="cf-ring" style="display:none;margin:auto;"></div>
+                <div class="coin-3d" id="cf-coin">🪙</div>
+            </div>
         </div>
-        <div class="multi-display"><div class="multi-value" style="color:var(--gold)">1.98x</div><div class="multi-label">Win Multiplier • RTP 97%</div></div>
+        <div class="multi-display"><div class="multi-value" style="color:var(--gold)">1.98x</div><div class="multi-label">Payout • RTP 97%</div></div>
         <div class="choice-row">
-            <button class="choice-btn" id="cf-h" onclick="selectCF('h')">
-                <div style="font-size:32px">👑</div><div style="font-weight:700">HEADS</div>
+            <button class="choice-btn" id="cf-h" onclick="cfChoice='h';document.getElementById('cf-h').classList.add('selected');document.getElementById('cf-t').classList.remove('selected')">
+                <div style="font-size:32px">👑</div><div style="font-weight:700;margin-top:4px">HEADS</div>
             </button>
-            <button class="choice-btn" id="cf-t" onclick="selectCF('t')">
-                <div style="font-size:32px">🦅</div><div style="font-weight:700">TAILS</div>
+            <button class="choice-btn" id="cf-t" onclick="cfChoice='t';document.getElementById('cf-t').classList.add('selected');document.getElementById('cf-h').classList.remove('selected')">
+                <div style="font-size:32px">🦅</div><div style="font-weight:700;margin-top:4px">TAILS</div>
             </button>
         </div>
         ${betUI('cf')}
-        <button class="play-button" onclick="playCoinFlip()">🪙 FLIP COIN</button>
-        <div id="cf-result" class="mt-12" style="min-height:80px;"></div>
-    `;
-}
-let cfChoice = null;
-function selectCF(c) {
-    cfChoice = c;
-    document.getElementById('cf-h').classList.toggle('selected', c==='h');
-    document.getElementById('cf-t').classList.toggle('selected', c==='t');
+        <button class="play-button" id="cf-btn" onclick="playCoinFlip()">🪙 FLIP COIN</button>
+        <div id="cf-result" style="min-height:80px;margin-top:12px;"></div>`;
 }
 function playCoinFlip() {
     if (!cfChoice) return alert('Pick Heads or Tails!');
     const bet = getBet('cf'); if (!bet) return;
+    document.getElementById('cf-btn').disabled = true;
     const coin = document.getElementById('cf-coin');
-    const ring = document.getElementById('cf-ring');
-    const won = Math.random() < (RTP.coinflip / CF_MULTI); // ~49% win chance
-    
-    // 3D flip animation
-    coin.style.transform = 'rotateY(1800deg)';
-    ring.style.display = 'block';
-    
+    const won = Math.random() < (RTP.coinflip / CF_MULTI);
+    coin.classList.add('flip-anim');
     setTimeout(() => {
-        coin.style.transform = 'rotateY(0)';
-        ring.style.display = 'none';
-        
-        const resultEmoji = won ? (cfChoice==='h' ? '👑' : '🦅') : (cfChoice==='h' ? '🦅' : '👑');
-        coin.textContent = resultEmoji;
+        coin.classList.remove('flip-anim');
+        const emoji = won ? (cfChoice==='h'?'👑':'🦅') : (cfChoice==='h'?'🦅':'👑');
+        coin.textContent = emoji;
         coin.classList.add('bounce');
-        
-        const res = document.getElementById('cf-result');
         if (won) {
-            const winAmount = bet * CF_MULTI;
-            const profit = winAmount - bet;
-            recordGame('Coin Flip', bet, true, profit);
+            const winAmt = bet * CF_MULTI;
+            recordGame('Coin Flip', bet, true, winAmt - bet);
             coin.classList.add('glow-green');
-            res.innerHTML = showWinResult(winAmount);
+            document.getElementById('cf-result').innerHTML = showWinResult(winAmt);
             showConfetti();
         } else {
             recordGame('Coin Flip', bet, false, -bet);
-            coin.classList.add('glow-red');
-            coin.classList.add('shake');
-            res.innerHTML = showLoseResult(bet);
+            coin.classList.add('glow-red','shake');
+            document.getElementById('cf-result').innerHTML = showLoseResult(bet);
         }
-        
-        setTimeout(() => {
-            coin.textContent = '🪙';
-            coin.className = 'coin-3d';
-        }, 3000);
+        setTimeout(() => { coin.textContent='🪙'; coin.className='coin-3d'; document.getElementById('cf-btn').disabled=false; }, 2500);
     }, 1500);
 }
 
-// ═══════════════════════════════════════════
-// 2. DICE - Animated Roll
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 2. DICE ROLL — Slider + Animated Die
+// ═══════════════════════════════════════════════════════════════
+let diceDir = 'over';
 function renderDice(body) {
+    diceDir = 'over';
     body.innerHTML = `
-        <div class="result-area">
-            <div id="dice-face" style="font-size:80px;transition:transform 0.3s;">🎲</div>
+        <div style="text-align:center;padding:16px 0;">
+            <div id="dice-face" style="font-size:72px;display:inline-block;transition:transform 0.3s;">🎲</div>
+            <div id="dice-num" style="font-size:28px;font-weight:800;min-height:36px;margin-top:8px;color:var(--gold);"></div>
         </div>
-        <div id="dice-num" style="font-size:24px;font-weight:800;text-align:center;min-height:30px;"></div>
-        <div style="text-align:center;margin:8px 0;">
-            <input type="range" id="dice-slider" min="1" max="95" value="50" 
-                style="width:80%;accent-color:var(--accent);" oninput="updateDiceSlider()">
-            <div style="display:flex;justify-content:space-between;padding:0 10%;font-size:12px;color:var(--text3);">
-                <span>1</span><span id="dice-target">50</span><span>100</span>
+        <div style="padding:0 20px;margin:12px 0;">
+            <input type="range" id="dice-slider" min="2" max="98" value="50" style="width:100%;accent-color:var(--accent);" oninput="updateDiceUI()">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px;">
+                <span>2</span><span>Roll <span id="dice-dir">Over</span> <b id="dice-target">50</b></span><span>98</span>
             </div>
         </div>
         <div class="choice-row">
-            <button class="choice-btn selected" id="d-over" onclick="diceDir='over';document.getElementById('d-over').classList.add('selected');document.getElementById('d-under').classList.remove('selected');updateDiceSlider()">⬆️ OVER</button>
-            <button class="choice-btn" id="d-under" onclick="diceDir='under';document.getElementById('d-under').classList.add('selected');document.getElementById('d-over').classList.remove('selected');updateDiceSlider()">⬇️ UNDER</button>
+            <button class="choice-btn selected" id="d-over" onclick="diceDir='over';document.getElementById('d-over').classList.add('selected');document.getElementById('d-under').classList.remove('selected');updateDiceUI()">⬆️ OVER</button>
+            <button class="choice-btn" id="d-under" onclick="diceDir='under';document.getElementById('d-under').classList.add('selected');document.getElementById('d-over').classList.remove('selected');updateDiceUI()">⬇️ UNDER</button>
         </div>
-        <div class="multi-display"><div class="multi-value" id="dice-multi">1.95x</div><div class="multi-label">Multiplier</div></div>
+        <div class="multi-display"><div class="multi-value" id="dice-multi">1.94x</div><div class="multi-label">Multiplier • <span id="dice-chance">50%</span> chance</div></div>
         ${betUI('dice')}
-        <button class="play-button" onclick="playDice()">ROLL DICE</button>
-        <div id="dice-result" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
-    updateDiceSlider();
+        <button class="play-button" id="dice-btn" onclick="playDice()">🎲 ROLL DICE</button>
+        <div id="dice-result" style="min-height:80px;margin-top:12px;"></div>`;
+    updateDiceUI();
 }
-let diceDir = 'over';
-function updateDiceSlider() {
+function updateDiceUI() {
     const val = parseInt(document.getElementById('dice-slider').value);
     document.getElementById('dice-target').textContent = val;
-    const chance = diceDir === 'over' ? (100 - val) / 100 : val / 100;
-    const multi = Math.max(1.01, (DICE_RTP / chance)).toFixed(2);
-    document.getElementById('dice-multi').textContent = multi + 'x';
+    document.getElementById('dice-dir').textContent = diceDir === 'over' ? 'Over' : 'Under';
+    const chance = diceDir === 'over' ? (99 - val) / 100 : (val - 1) / 100;
+    const multi = Math.max(1.01, (DICE_RTP / chance)).toFixed(4);
+    document.getElementById('dice-multi').textContent = parseFloat(multi).toFixed(2) + 'x';
+    document.getElementById('dice-chance').textContent = (chance * 100).toFixed(1) + '%';
 }
 function playDice() {
     const bet = getBet('dice'); if (!bet) return;
+    document.getElementById('dice-btn').disabled = true;
     const target = parseInt(document.getElementById('dice-slider').value);
-    const chance = diceDir === 'over' ? (100 - target) / 100 : target / 100;
-    const multi = Math.max(1.01, DICE_RTP / chance); // RTP 97%
-    
+    const chance = diceDir === 'over' ? (99 - target) / 100 : (target - 1) / 100;
+    const multi = Math.max(1.01, DICE_RTP / chance);
     const face = document.getElementById('dice-face');
     const emojis = ['⚀','⚁','⚂','⚃','⚄','⚅'];
-    let count = 0;
+    let c = 0;
     const anim = setInterval(() => {
         face.textContent = emojis[Math.floor(Math.random()*6)];
-        face.style.transform = `rotate(${Math.random()*360}deg)`;
-        if (++count > 15) {
-            clearInterval(anim);
-            face.style.transform = 'rotate(0)';
-            
-            const roll = Math.floor(Math.random() * 100) + 1;
-            const won = diceDir === 'over' ? roll > target : roll < target;
-            
+        face.style.transform = `rotate(${Math.random()*40-20}deg) scale(${0.9+Math.random()*0.2})`;
+        if (++c > 18) { clearInterval(anim); face.style.transform = 'rotate(0) scale(1)';
+            const roll = Math.floor(Math.random()*99)+1;
+            const won = diceDir==='over' ? roll > target : roll < target;
+            face.textContent = emojis[Math.min(5,Math.floor(roll/17))];
             document.getElementById('dice-num').textContent = roll;
-            face.textContent = emojis[Math.min(5, Math.floor(roll/17))];
-            
-            const res = document.getElementById('dice-result');
+            document.getElementById('dice-num').classList.add('count-up');
             if (won) {
-                const profit = bet * (multi - 1);
+                const profit = bet * multi - bet;
                 recordGame('Dice', bet, true, profit);
-                res.innerHTML = `<div class="win-popup">🎲 ${roll}! WIN +${(bet*multi).toFixed(2)} (${multi.toFixed(2)}x)</div>`;
+                face.classList.add('glow-green','bounce');
+                document.getElementById('dice-result').innerHTML = showWinResult(bet * multi);
+                if (multi >= 5) showConfetti();
             } else {
                 recordGame('Dice', bet, false, -bet);
-                res.innerHTML = `<div class="lose-popup">🎲 ${roll}! LOSE -${bet.toFixed(2)}</div>`;
+                face.classList.add('shake');
+                document.getElementById('dice-result').innerHTML = showLoseResult(bet);
             }
+            setTimeout(() => { face.className=''; document.getElementById('dice-btn').disabled=false; }, 2000);
         }
-    }, 60);
+    }, 55);
 }
 
-// ═══════════════════════════════════════════
-// 3. MEGA SLOTS - 5 Reels
-// ═══════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// 3. MEGA SLOTS — 3 Reels with Spinning Animation
+// ═══════════════════════════════════════════════════════════════
 function renderSlots(body) {
     body.innerHTML = `
-        <div class="slots-display" style="gap:6px;">
-            <div class="slot-reel" id="sr1">🍒</div>
-            <div class="slot-reel" id="sr2">🍋</div>
-            <div class="slot-reel" id="sr3">🍊</div>
-        </div>
-        <div id="slots-info" style="text-align:center;font-size:11px;color:var(--text3);margin:8px 0;">
-            3x 7️⃣ = 100x • 3x 💎 = 50x • 3x ⭐ = 20x • 3x = 10x • 2x Match = 2x • RTP 96%
+        <div style="text-align:center;padding:12px 0;">
+            <div class="slots-display">
+                <div class="slot-reel" id="sr1">🍒</div>
+                <div class="slot-reel" id="sr2">🍋</div>
+                <div class="slot-reel" id="sr3">🍊</div>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:8px;">
+                7️⃣7️⃣7️⃣ = 100x • 💎💎💎 = 50x • ⭐⭐⭐ = 20x • 3x = 10x • 2x = 2x | RTP 96%
+            </div>
         </div>
         ${betUI('slots')}
-        <button class="play-button" onclick="playSlots()">🎰 SPIN</button>
-        <div id="slots-result" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
+        <button class="play-button" id="slots-btn" onclick="playSlots()">🎰 SPIN</button>
+        <div id="slots-result" style="min-height:80px;margin-top:12px;"></div>`;
 }
 function playSlots() {
     const bet = getBet('slots'); if (!bet) return;
+    document.getElementById('slots-btn').disabled = true;
     const symbols = ['🍒','🍋','🍊','🍇','⭐','💎','7️⃣'];
     const reels = ['sr1','sr2','sr3'];
-    
-    reels.forEach(r => document.getElementById(r).classList.add('spinning'));
-    
-    let count = 0;
+    reels.forEach(r => document.getElementById(r).classList.add('slot-spinning'));
+    let c = 0;
     const anim = setInterval(() => {
         reels.forEach(r => document.getElementById(r).textContent = symbols[Math.floor(Math.random()*7)]);
-        if (++count > 25) {
-            clearInterval(anim);
-            reels.forEach(r => document.getElementById(r).classList.remove('spinning'));
-            
-            // Determine result - RTP 96% (real slot standard)
-            const rand = Math.random();
-            let s1, s2, s3, mult = 0;
-            
-            if (rand < 0.003) { s1=s2=s3='7️⃣'; mult=100; }       // 0.3% - Mega Jackpot 100x
-            else if (rand < 0.008) { s1=s2=s3='💎'; mult=50; }     // 0.5% - Diamond 50x
-            else if (rand < 0.02) { s1=s2=s3='⭐'; mult=20; }      // 1.2% - Star 20x
-            else if (rand < 0.05) { s1=s2=s3=symbols[Math.floor(Math.random()*4)]; mult=10; } // 3% - Triple 10x
-            else if (rand < 0.18) { s1=s2=symbols[Math.floor(Math.random()*7)]; do{s3=symbols[Math.floor(Math.random()*7)];}while(s3===s1); mult=2; } // 13% - Double 2x
-            else if (rand < 0.30) { s1=s2=symbols[Math.floor(Math.random()*7)]; do{s3=symbols[Math.floor(Math.random()*7)];}while(s3===s1); mult=1.5; } // 12% - Partial 1.5x
-            else { s1=symbols[Math.floor(Math.random()*7)]; do{s2=symbols[Math.floor(Math.random()*7)];}while(s2===s1); do{s3=symbols[Math.floor(Math.random()*7)];}while(s3===s1||s3===s2); mult=0; }
-            
-            document.getElementById('sr1').textContent = s1;
-            document.getElementById('sr2').textContent = s2;
-            document.getElementById('sr3').textContent = s3;
-            
+        if (++c > 30) { clearInterval(anim);
+            reels.forEach(r => document.getElementById(r).classList.remove('slot-spinning'));
+            const rand = Math.random(); let s1,s2,s3,mult=0;
+            if (rand<0.003){s1=s2=s3='7️⃣';mult=100;}
+            else if(rand<0.008){s1=s2=s3='💎';mult=50;}
+            else if(rand<0.02){s1=s2=s3='⭐';mult=20;}
+            else if(rand<0.05){s1=s2=s3=symbols[Math.floor(Math.random()*4)];mult=10;}
+            else if(rand<0.18){s1=s2=symbols[Math.floor(Math.random()*7)];do{s3=symbols[Math.floor(Math.random()*7)];}while(s3===s1);mult=2;}
+            else if(rand<0.30){s1=s2=symbols[Math.floor(Math.random()*7)];do{s3=symbols[Math.floor(Math.random()*7)];}while(s3===s1);mult=1.5;}
+            else{s1=symbols[Math.floor(Math.random()*7)];do{s2=symbols[Math.floor(Math.random()*7)];}while(s2===s1);do{s3=symbols[Math.floor(Math.random()*7)];}while(s3===s1||s3===s2);mult=0;}
+            document.getElementById('sr1').textContent=s1; document.getElementById('sr2').textContent=s2; document.getElementById('sr3').textContent=s3;
             const res = document.getElementById('slots-result');
-            if (mult > 0) {
-                const profit = bet * (mult - 1);
-                recordGame('Slots', bet, true, profit);
-                reels.forEach(r => document.getElementById(r).classList.add('glow-gold'));
-                if (mult >= 50) { res.innerHTML = showWinResult(bet*mult); showConfetti(); }
-                else res.innerHTML = showWinResult(bet*mult);
-                if (mult >= 10) showConfetti();
-            } else {
-                recordGame('Slots', bet, false, -bet);
-                reels.forEach(r => document.getElementById(r).classList.add('shake'));
-                res.innerHTML = showLoseResult(bet);
-                setTimeout(() => reels.forEach(r => document.getElementById(r).classList.remove('shake')), 500);
-            }
+            if (mult>0) { recordGame('Slots',bet,true,bet*(mult-1)); reels.forEach(r=>document.getElementById(r).classList.add('glow-gold','bounce')); res.innerHTML=showWinResult(bet*mult); if(mult>=10)showConfetti(); }
+            else { recordGame('Slots',bet,false,-bet); reels.forEach(r=>document.getElementById(r).classList.add('shake')); res.innerHTML=showLoseResult(bet); }
+            setTimeout(()=>{reels.forEach(r=>{const el=document.getElementById(r);el.className='slot-reel';}); document.getElementById('slots-btn').disabled=false;},2500);
         }
-    }, 60);
+    }, 55);
 }
 
-
-// ═══════════════════════════════════════════
-// 4. MINES - Interactive Grid
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 4. MINES — Interactive 5x5 Grid
+// ═══════════════════════════════════════════════════════════════
 let mState = { active: false };
 function renderMines(body) {
     body.innerHTML = `
-        <div class="multi-display"><div class="multi-value" id="m-multi">1.00x</div><div class="multi-label">Current Multiplier</div></div>
+        <div class="multi-display"><div class="multi-value" id="m-multi">1.00x</div><div class="multi-label">Multiplier • <span id="m-profit">0.00</span> USDT profit</div></div>
         <div class="mines-board" id="m-board"></div>
         <div style="text-align:center;margin:8px 0;font-size:12px;color:var(--text3);">
-            Mines: <select id="m-count" style="background:var(--bg3);color:white;border:none;padding:4px 8px;border-radius:6px;">
-                <option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="15">15</option><option value="20">20</option>
+            Mines: <select id="m-count" style="background:var(--bg3);color:white;border:none;padding:4px 8px;border-radius:6px;font-size:13px;">
+                <option value="1">1 (Safe)</option><option value="3">3</option><option value="5" selected>5</option><option value="10">10</option><option value="15">15</option><option value="20">20 (Risky)</option><option value="24">24 (Extreme)</option>
             </select>
         </div>
         ${betUI('mines')}
-        <button class="play-button" id="m-start" onclick="startMines()">START GAME</button>
-        <button class="play-button hidden" id="m-cash" onclick="cashMines()" style="background:linear-gradient(135deg,var(--green),#059669)">💰 CASH OUT</button>
-        <div id="m-msg" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
+        <button class="play-button" id="m-start" onclick="startMines()">💣 START GAME</button>
+        <button class="play-button hidden" id="m-cash" onclick="cashMines()" style="background:linear-gradient(135deg,var(--green),#059669)">💰 CASH OUT (<span id="m-cashamt">0.00</span>)</button>
+        <div id="m-msg" style="min-height:60px;margin-top:12px;"></div>`;
     buildMineBoard();
 }
-function buildMineBoard() {
-    const board = document.getElementById('m-board');
-    board.innerHTML = '';
-    for (let i = 0; i < 25; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'mine-cell';
-        cell.id = `mc-${i}`;
-        cell.onclick = () => clickMine(i);
-        board.appendChild(cell);
-    }
-}
+function buildMineBoard() { const b=document.getElementById('m-board'); b.innerHTML=''; for(let i=0;i<25;i++){const c=document.createElement('div');c.className='mine-cell';c.id=`mc-${i}`;c.onclick=()=>clickMine(i);b.appendChild(c);} }
 function startMines() {
     const bet = getBet('mines'); if (!bet) return;
-    const mineCount = parseInt(document.getElementById('m-count').value);
-    let mines = [];
-    while (mines.length < mineCount) { const p = Math.floor(Math.random()*25); if (!mines.includes(p)) mines.push(p); }
-    mState = { active: true, bet, mines, revealed: [], multi: 1, mineCount };
+    const mc = parseInt(document.getElementById('m-count').value);
+    let mines=[]; while(mines.length<mc){const p=Math.floor(Math.random()*25);if(!mines.includes(p))mines.push(p);}
+    mState={active:true,bet,mines,revealed:[],multi:1,mineCount:mc};
     document.getElementById('m-start').classList.add('hidden');
     document.getElementById('m-cash').classList.remove('hidden');
-    document.getElementById('m-multi').textContent = '1.00x';
-    document.getElementById('m-msg').innerHTML = '<span class="text-muted">Tap tiles to find 💎 Avoid 💣</span>';
+    document.getElementById('m-msg').innerHTML='<span class="text-muted">🎯 Tap tiles to find gems! Avoid bombs.</span>';
     buildMineBoard();
 }
 function clickMine(i) {
-    if (!mState.active || mState.revealed.includes(i)) return;
+    if(!mState.active||mState.revealed.includes(i))return;
     mState.revealed.push(i);
-    const cell = document.getElementById(`mc-${i}`);
-    
-    if (mState.mines.includes(i)) {
-        cell.textContent = '💣'; cell.className = 'mine-cell revealed-mine mine-explode';
-        mState.active = false;
-        // Reveal all mines with delay
-        mState.mines.forEach((p, idx) => { 
-            setTimeout(() => {
-                document.getElementById(`mc-${p}`).textContent = '💣'; 
-                document.getElementById(`mc-${p}`).className = 'mine-cell revealed-mine mine-explode';
-            }, idx * 100);
-        });
-        recordGame('Mines', mState.bet, false, -mState.bet);
-        document.getElementById('m-msg').innerHTML = showLoseResult(mState.bet);
-        document.getElementById('m-cash').classList.add('hidden');
-        document.getElementById('m-start').classList.remove('hidden');
+    const cell=document.getElementById(`mc-${i}`);
+    if(mState.mines.includes(i)){
+        cell.textContent='💣'; cell.className='mine-cell revealed-mine mine-explode';
+        mState.active=false;
+        mState.mines.forEach((p,idx)=>{setTimeout(()=>{document.getElementById(`mc-${p}`).textContent='💣';document.getElementById(`mc-${p}`).className='mine-cell revealed-mine mine-explode';},idx*80);});
+        recordGame('Mines',mState.bet,false,-mState.bet);
+        document.getElementById('m-msg').innerHTML=showLoseResult(mState.bet);
+        document.getElementById('m-cash').classList.add('hidden');document.getElementById('m-start').classList.remove('hidden');
     } else {
-        cell.textContent = '💎'; cell.className = 'mine-cell revealed-gem gem-sparkle';
-        // Multiplier increases based on mine count
-        const safeLeft = 25 - mState.mineCount - mState.revealed.length + 1;
-        const totalSafe = 25 - mState.mineCount;
-        mState.multi *= (25 - mState.revealed.length + 1) / safeLeft;
-        mState.multi = Math.max(mState.multi, 1 + mState.revealed.length * 0.2);
-        document.getElementById('m-multi').textContent = mState.multi.toFixed(2) + 'x';
+        cell.textContent='💎'; cell.className='mine-cell revealed-gem gem-sparkle';
+        const safe=25-mState.mineCount; const found=mState.revealed.length;
+        mState.multi = 1; for(let k=0;k<found;k++){mState.multi*=safe/(safe-k);} mState.multi*=RTP.mines;
+        document.getElementById('m-multi').textContent=mState.multi.toFixed(2)+'x';
+        document.getElementById('m-profit').textContent=(mState.bet*mState.multi-mState.bet).toFixed(2);
+        document.getElementById('m-cashamt').textContent=(mState.bet*mState.multi).toFixed(2);
+        if(mState.revealed.length>=25-mState.mineCount){cashMines();}
     }
 }
 function cashMines() {
-    if (!mState.active) return;
-    mState.active = false;
-    const profit = mState.bet * mState.multi - mState.bet;
-    recordGame('Mines', mState.bet, true, profit);
-    document.getElementById('m-msg').innerHTML = showWinResult(mState.bet * mState.multi);
-    showConfetti();
-    mState.mines.forEach((p, idx) => { 
-        setTimeout(() => {
-            document.getElementById(`mc-${p}`).textContent = '💣'; 
-            document.getElementById(`mc-${p}`).className = 'mine-cell revealed-mine';
-        }, idx * 100);
-    });
-    document.getElementById('m-cash').classList.add('hidden');
-    document.getElementById('m-start').classList.remove('hidden');
+    if(!mState.active)return; mState.active=false;
+    const profit=mState.bet*mState.multi-mState.bet;
+    recordGame('Mines',mState.bet,true,profit);
+    document.getElementById('m-msg').innerHTML=showWinResult(mState.bet*mState.multi); showConfetti();
+    mState.mines.forEach((p,idx)=>{setTimeout(()=>{document.getElementById(`mc-${p}`).textContent='💣';document.getElementById(`mc-${p}`).className='mine-cell revealed-mine';},idx*80);});
+    document.getElementById('m-cash').classList.add('hidden');document.getElementById('m-start').classList.remove('hidden');
 }
 
-// ═══════════════════════════════════════════
-// 5. CRASH - Live Canvas Graph
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 5. CRASH — Live Rising Multiplier
+// ═══════════════════════════════════════════════════════════════
 let crashState = { active: false };
 function renderCrash(body) {
     body.innerHTML = `
@@ -424,454 +328,328 @@ function renderCrash(body) {
             <div class="crash-line" id="crash-line"></div>
             <div class="crash-multiplier" id="crash-multi">1.00x</div>
         </div>
+        <div style="text-align:center;font-size:11px;color:var(--text3);margin:6px 0;">Cash out before it crashes! RTP 96%</div>
         ${betUI('crash')}
         <button class="play-button" id="crash-start" onclick="startCrash()">🚀 LAUNCH</button>
-        <button class="play-button hidden" id="crash-stop" onclick="stopCrash()" style="background:linear-gradient(135deg,var(--green),#059669)">💰 CASH OUT</button>
-        <div id="crash-msg" class="mt-12" style="min-height:80px;"></div>
-    `;
+        <button class="play-button hidden" id="crash-stop" onclick="stopCrash()" style="background:linear-gradient(135deg,var(--green),#059669)">💰 CASH OUT (<span id="crash-amt">0.00</span>)</button>
+        <div id="crash-msg" style="min-height:80px;margin-top:12px;"></div>`;
 }
 function startCrash() {
-    const bet = getBet('crash'); if (!bet) return;
-    const crashAt = 1 / (1 - Math.random() * RTP.crash); // Mathematically fair crash point with 96% RTP
-    crashState = { active: true, bet, multi: 1, crashAt };
+    const bet=getBet('crash'); if(!bet)return;
+    const crashAt=1/(1-Math.random()*RTP.crash);
+    crashState={active:true,bet,multi:1,crashAt};
     document.getElementById('crash-start').classList.add('hidden');
     document.getElementById('crash-stop').classList.remove('hidden');
-    document.getElementById('crash-msg').innerHTML = '';
-    const display = document.getElementById('crash-multi');
-    const line = document.getElementById('crash-line');
-    const box = document.getElementById('crash-box');
-    display.className = 'crash-multiplier';
-    display.style.color = 'var(--green)';
-    line.style.background = 'linear-gradient(90deg, var(--green), var(--gold))';
-    box.classList.add('crash-glow');
-    
-    const tick = setInterval(() => {
-        if (!crashState.active) { clearInterval(tick); return; }
-        crashState.multi += 0.02 + (crashState.multi * 0.004);
-        display.textContent = crashState.multi.toFixed(2) + 'x';
-        line.style.width = Math.min(100, (crashState.multi / crashState.crashAt) * 100) + '%';
-        line.style.height = Math.min(180, (crashState.multi / crashState.crashAt) * 150) + 'px';
-        
-        // Color shift as multiplier increases
-        if (crashState.multi > 3) display.style.color = 'var(--gold)';
-        if (crashState.multi > 7) display.style.color = '#f59e0b';
-        if (crashState.multi > 15) display.style.color = '#ec4899';
-        
-        if (crashState.multi >= crashState.crashAt) {
-            clearInterval(tick);
-            crashState.active = false;
-            display.textContent = '💥 CRASHED';
-            display.className = 'crash-multiplier crashed';
-            line.style.background = 'var(--red)';
-            box.classList.remove('crash-glow');
-            box.classList.add('shake');
-            recordGame('Crash', bet, false, -bet);
-            document.getElementById('crash-msg').innerHTML = showLoseResult(bet) + `<div class="text-sm text-muted mt-12">Crashed at ${crashState.crashAt.toFixed(2)}x</div>`;
-            document.getElementById('crash-stop').classList.add('hidden');
-            document.getElementById('crash-start').classList.remove('hidden');
-            setTimeout(() => box.classList.remove('shake'), 500);
+    document.getElementById('crash-msg').innerHTML='';
+    const display=document.getElementById('crash-multi');
+    const line=document.getElementById('crash-line');
+    display.className='crash-multiplier'; display.style.color='var(--green)';
+    line.style.background='linear-gradient(90deg,var(--green),var(--gold))';
+    const tick=setInterval(()=>{
+        if(!crashState.active){clearInterval(tick);return;}
+        crashState.multi+=0.01+(crashState.multi*0.003);
+        display.textContent=crashState.multi.toFixed(2)+'x';
+        document.getElementById('crash-amt').textContent=(crashState.bet*crashState.multi).toFixed(2);
+        line.style.width=Math.min(100,(crashState.multi/crashState.crashAt)*100)+'%';
+        line.style.height=Math.min(180,(crashState.multi/crashState.crashAt)*150)+'px';
+        if(crashState.multi>3)display.style.color='var(--gold)';
+        if(crashState.multi>8)display.style.color='#ec4899';
+        if(crashState.multi>=crashState.crashAt){
+            clearInterval(tick); crashState.active=false;
+            display.textContent='💥 '+crashState.crashAt.toFixed(2)+'x';
+            display.className='crash-multiplier crashed';
+            line.style.background='var(--red)';
+            document.getElementById('crash-box').classList.add('shake');
+            recordGame('Crash',bet,false,-bet);
+            document.getElementById('crash-msg').innerHTML=showLoseResult(bet);
+            document.getElementById('crash-stop').classList.add('hidden');document.getElementById('crash-start').classList.remove('hidden');
+            setTimeout(()=>document.getElementById('crash-box').classList.remove('shake'),500);
         }
-    }, 50);
+    },50);
 }
-function stopCrash() {
-    if (!crashState.active) return;
-    crashState.active = false;
-    const profit = crashState.bet * crashState.multi - crashState.bet;
-    recordGame('Crash', crashState.bet, true, profit);
-    document.getElementById('crash-multi').textContent = crashState.multi.toFixed(2) + 'x ✓';
-    document.getElementById('crash-box').classList.remove('crash-glow');
-    document.getElementById('crash-msg').innerHTML = showWinResult(crashState.bet * crashState.multi);
+function stopCrash(){
+    if(!crashState.active)return; crashState.active=false;
+    const profit=crashState.bet*crashState.multi-crashState.bet;
+    recordGame('Crash',crashState.bet,true,profit);
+    document.getElementById('crash-multi').textContent=crashState.multi.toFixed(2)+'x ✓';
+    document.getElementById('crash-msg').innerHTML=showWinResult(crashState.bet*crashState.multi);
     showConfetti();
-    document.getElementById('crash-stop').classList.add('hidden');
-    document.getElementById('crash-start').classList.remove('hidden');
+    document.getElementById('crash-stop').classList.add('hidden');document.getElementById('crash-start').classList.remove('hidden');
 }
 
-// ═══════════════════════════════════════════
-// 6. PLINKO - Ball Drop
-// ═══════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// 6. PLINKO — Risk Levels
+// ═══════════════════════════════════════════════════════════════
+let plinkoRisk='low';
 function renderPlinko(body) {
     body.innerHTML = `
         <div style="text-align:center;margin:12px 0;">
-            <div style="font-size:14px;color:var(--text3);margin-bottom:8px;">Risk Level:</div>
             <div class="choice-row">
-                <button class="choice-btn selected" id="pl-low" onclick="plinkoRisk='low';document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">Low</button>
-                <button class="choice-btn" id="pl-med" onclick="plinkoRisk='med';document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">Medium</button>
-                <button class="choice-btn" id="pl-high" onclick="plinkoRisk='high';document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">High</button>
+                <button class="choice-btn selected" id="pl-l" onclick="plinkoRisk='low';document.querySelectorAll('[id^=pl-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">🟢 Low</button>
+                <button class="choice-btn" id="pl-m" onclick="plinkoRisk='med';document.querySelectorAll('[id^=pl-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">🟡 Medium</button>
+                <button class="choice-btn" id="pl-h" onclick="plinkoRisk='high';document.querySelectorAll('[id^=pl-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">🔴 High</button>
             </div>
         </div>
-        <div id="plinko-result" class="result-area" style="font-size:36px;">⚪</div>
+        <div style="text-align:center;padding:20px 0;">
+            <div id="plinko-ball" style="font-size:48px;display:inline-block;">⚪</div>
+            <div id="plinko-mult" style="font-size:36px;font-weight:800;color:var(--gold);min-height:44px;margin-top:8px;"></div>
+        </div>
         ${betUI('plinko')}
-        <button class="play-button" onclick="playPlinko()">⚪ DROP BALL</button>
-        <div id="plinko-msg" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
+        <button class="play-button" id="plinko-btn" onclick="playPlinko()">⚪ DROP BALL</button>
+        <div id="plinko-msg" style="min-height:80px;margin-top:12px;"></div>`;
 }
-let plinkoRisk = 'low';
-function playPlinko() {
-    const bet = getBet('plinko'); if (!bet) return;
-    const mults = {
-        low: [1.5, 1.2, 1, 0.8, 0.5, 0.3, 0.5, 0.8, 1, 1.2, 1.5, 2, 3, 2, 1.5],
-        med: [5, 2, 1.5, 1, 0.5, 0.3, 0.2, 0.3, 0.5, 1, 1.5, 2, 5, 8, 3],
-        high: [1000, 50, 10, 5, 2, 0.2, 0.1, 0.1, 0.1, 0.2, 2, 5, 10, 50, 1000],
-    };
-    const pool = mults[plinkoRisk];
-    // Weighted toward center (lower values)
-    const weights = pool.map((_, i) => Math.exp(-Math.pow((i - pool.length/2) / (pool.length/4), 2)));
-    const totalW = weights.reduce((a,b) => a+b);
-    let r = Math.random() * totalW, idx = 0;
-    for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) { idx = i; break; } }
-    
-    const mult = pool[idx];
-    const res = document.getElementById('plinko-result');
-    res.textContent = '⚪ ...';
-    res.style.animation = 'float 0.5s infinite';
-    
-    setTimeout(() => {
-        res.style.animation = '';
-        res.textContent = mult + 'x';
-        const profit = bet * mult - bet;
-        if (profit >= 0) {
-            recordGame('Plinko', bet, true, profit);
-            document.getElementById('plinko-msg').innerHTML = `<div class="win-popup">${mult}x! +${(bet*mult).toFixed(2)}</div>`;
-        } else {
-            recordGame('Plinko', bet, false, profit);
-            document.getElementById('plinko-msg').innerHTML = `<div class="lose-popup">${mult}x -${(-profit).toFixed(2)}</div>`;
-        }
-    }, 1200);
+function playPlinko(){
+    const bet=getBet('plinko');if(!bet)return;
+    document.getElementById('plinko-btn').disabled=true;
+    const mults={low:[1.5,1.2,1.1,0.9,0.7,0.5,0.7,0.9,1.1,1.2,1.5,2,3,2,1.5],med:[5,3,1.5,1,0.5,0.3,0.2,0.3,0.5,1,1.5,3,5,8,3],high:[100,25,10,5,2,0.2,0.1,0.1,0.1,0.2,2,5,10,25,100]};
+    const pool=mults[plinkoRisk];
+    const weights=pool.map((_,i)=>Math.exp(-Math.pow((i-pool.length/2)/(pool.length/4),2)));
+    const totalW=weights.reduce((a,b)=>a+b); let r=Math.random()*totalW,idx=0;
+    for(let i=0;i<weights.length;i++){r-=weights[i];if(r<=0){idx=i;break;}}
+    const mult=pool[idx];
+    const ball=document.getElementById('plinko-ball');
+    ball.style.animation='float 0.3s infinite';
+    setTimeout(()=>{
+        ball.style.animation=''; document.getElementById('plinko-mult').textContent=mult+'x';
+        const profit=bet*mult-bet;
+        if(profit>=0){recordGame('Plinko',bet,true,profit);document.getElementById('plinko-msg').innerHTML=showWinResult(bet*mult);if(mult>=5)showConfetti();}
+        else{recordGame('Plinko',bet,false,profit);document.getElementById('plinko-msg').innerHTML=showLoseResult(-profit);}
+        document.getElementById('plinko-btn').disabled=false;
+    },1200);
 }
 
-
-// ═══════════════════════════════════════════
-// 7. FORTUNE WHEEL
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 7. FORTUNE WHEEL — Spinning Wheel
+// ═══════════════════════════════════════════════════════════════
 function renderWheel(body) {
     body.innerHTML = `
-        <div class="result-area" style="position:relative;">
-            <div id="wheel-spinner" style="font-size:72px;transition:transform 3s cubic-bezier(0.17,0.67,0.12,0.99);">🎡</div>
-            <div id="wheel-mult" style="font-size:28px;font-weight:800;color:var(--gold);margin-top:8px;min-height:36px;"></div>
+        <div class="wheel-container">
+            <div class="wheel-pointer">🔻</div>
+            <div class="wheel-spinner" id="wheel-spin"></div>
+            <div class="wheel-center">🎰</div>
         </div>
-        <div style="text-align:center;font-size:11px;color:var(--text3);margin:8px 0;">
-            💀0x • 🟢1.5x • 🔵2x • 🟡3x • 🟠5x • 🔴10x • 💎50x
-        </div>
+        <div id="wheel-mult" style="text-align:center;font-size:28px;font-weight:800;color:var(--gold);min-height:36px;margin:12px 0;"></div>
         ${betUI('wheel')}
-        <button class="play-button" onclick="playWheel()">🎡 SPIN WHEEL</button>
-        <div id="wheel-msg" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
+        <button class="play-button" id="wheel-btn" onclick="playWheel()">🎡 SPIN WHEEL</button>
+        <div id="wheel-msg" style="min-height:80px;margin-top:12px;"></div>`;
 }
-function playWheel() {
-    const bet = getBet('wheel'); if (!bet) return;
-    const segments = [{m:0,e:'💀'},{m:1.5,e:'🟢'},{m:2,e:'🔵'},{m:0,e:'💀'},{m:3,e:'🟡'},{m:1.5,e:'🟢'},{m:0,e:'💀'},{m:5,e:'🟠'},{m:1.5,e:'🟢'},{m:0,e:'💀'},{m:2,e:'🔵'},{m:10,e:'🔴'},{m:0,e:'💀'},{m:1.5,e:'🟢'},{m:50,e:'💎'},{m:0,e:'💀'}];
-    
-    const spinner = document.getElementById('wheel-spinner');
-    const rotation = 1440 + Math.random() * 720; // 4-6 full spins
-    spinner.style.transform = `rotate(${rotation}deg)`;
-    
-    setTimeout(() => {
-        spinner.style.transition = 'none';
-        spinner.style.transform = 'rotate(0)';
-        setTimeout(() => { spinner.style.transition = 'transform 3s cubic-bezier(0.17,0.67,0.12,0.99)'; }, 50);
-        
-        const seg = segments[Math.floor(Math.random() * segments.length)];
-        document.getElementById('wheel-mult').textContent = seg.e + ' ' + seg.m + 'x';
-        
-        if (seg.m > 0) {
-            const profit = bet * seg.m - bet;
-            recordGame('Wheel', bet, true, profit);
-            document.getElementById('wheel-msg').innerHTML = `<div class="win-popup">${seg.e} ${seg.m}x! +${(bet*seg.m).toFixed(2)}</div>`;
-        } else {
-            recordGame('Wheel', bet, false, -bet);
-            document.getElementById('wheel-msg').innerHTML = `<div class="lose-popup">${seg.e} 0x! -${bet.toFixed(2)}</div>`;
-        }
-    }, 3000);
+function playWheel(){
+    const bet=getBet('wheel');if(!bet)return;
+    document.getElementById('wheel-btn').disabled=true;
+    const segments=[{m:0,l:'💀'},{m:1.5,l:'🟢'},{m:2,l:'🔵'},{m:0,l:'💀'},{m:3,l:'🟡'},{m:1.5,l:'🟢'},{m:0,l:'💀'},{m:5,l:'🟠'},{m:1.5,l:'🟢'},{m:0,l:'💀'},{m:2,l:'🔵'},{m:10,l:'🔴'},{m:0,l:'💀'},{m:1.5,l:'🟢'},{m:50,l:'💎'},{m:0,l:'💀'}];
+    const spinner=document.getElementById('wheel-spin');
+    const deg=1800+Math.random()*1440;
+    spinner.style.transform=`rotate(${deg}deg)`;
+    setTimeout(()=>{
+        const idx=Math.floor(Math.random()*segments.length);
+        const seg=segments[idx];
+        document.getElementById('wheel-mult').textContent=seg.l+' '+seg.m+'x';
+        if(seg.m>0){const profit=bet*seg.m-bet;recordGame('Wheel',bet,true,profit);document.getElementById('wheel-msg').innerHTML=showWinResult(bet*seg.m);if(seg.m>=10)showConfetti();}
+        else{recordGame('Wheel',bet,false,-bet);document.getElementById('wheel-msg').innerHTML=showLoseResult(bet);}
+        document.getElementById('wheel-btn').disabled=false;
+        setTimeout(()=>{spinner.style.transition='none';spinner.style.transform='rotate(0)';setTimeout(()=>{spinner.style.transition='transform 4s cubic-bezier(0.17,0.67,0.12,0.99)';},50);},500);
+    },4000);
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // 8. HI-LO CARDS
-// ═══════════════════════════════════════════
-function renderHiLo(body) {
-    const cards = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-    const startCard = Math.floor(Math.random()*13);
-    body.innerHTML = `
-        <div style="text-align:center;margin:16px 0;">
-            <div style="font-size:12px;color:var(--text3);">Current Card:</div>
-            <div id="hilo-card" style="font-size:64px;font-weight:800;background:var(--bg2);width:100px;height:140px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:8px auto;border:2px solid var(--bg4);">${cards[startCard]}</div>
-            <div style="font-size:12px;color:var(--text3);">Value: ${startCard + 1}/13</div>
+// ═══════════════════════════════════════════════════════════════
+function renderHiLo(body){
+    const cards=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const cur=Math.floor(Math.random()*13);
+    body.innerHTML=`
+        <div style="text-align:center;padding:20px 0;">
+            <div style="font-size:11px;color:var(--text3);">Current Card</div>
+            <div style="font-size:56px;font-weight:800;width:90px;height:120px;background:linear-gradient(135deg,var(--bg2),var(--bg3));border-radius:12px;display:flex;align-items:center;justify-content:center;margin:8px auto;border:2px solid var(--bg4);" id="hilo-card">${cards[cur]}</div>
+            <div style="font-size:12px;color:var(--text3);">Value: ${cur+1} of 13</div>
         </div>
-        <div class="multi-display"><div class="multi-value" id="hilo-multi">1.95x</div><div class="multi-label">Payout</div></div>
+        <div class="multi-display"><div class="multi-value">1.98x</div><div class="multi-label">Payout • RTP 97%</div></div>
         ${betUI('hilo')}
         <div class="choice-row">
-            <button class="choice-btn" onclick="playHiLo('hi',${startCard})">⬆️ HIGHER</button>
-            <button class="choice-btn" onclick="playHiLo('lo',${startCard})">⬇️ LOWER</button>
+            <button class="choice-btn" onclick="playHiLo('hi',${cur})">⬆️ HIGHER</button>
+            <button class="choice-btn" onclick="playHiLo('lo',${cur})">⬇️ LOWER</button>
         </div>
-        <div id="hilo-msg" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
+        <div id="hilo-msg" style="min-height:80px;margin-top:12px;"></div>`;
 }
-function playHiLo(choice, current) {
-    const bet = getBet('hilo'); if (!bet) return;
-    const cards = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-    const next = Math.floor(Math.random()*13);
-    const won = (choice==='hi' && next > current) || (choice==='lo' && next < current);
-    
-    document.getElementById('hilo-card').textContent = cards[next];
-    document.getElementById('hilo-card').style.borderColor = won ? 'var(--green)' : 'var(--red)';
-    
-    if (won) {
-        const profit = bet * 0.95;
-        recordGame('Hi-Lo', bet, true, profit);
-        document.getElementById('hilo-msg').innerHTML = `<div class="win-popup">${cards[current]}→${cards[next]} WIN! +${(bet*1.95).toFixed(2)}</div>`;
-    } else {
-        recordGame('Hi-Lo', bet, false, -bet);
-        document.getElementById('hilo-msg').innerHTML = `<div class="lose-popup">${cards[current]}→${cards[next]} LOSE -${bet.toFixed(2)}</div>`;
-    }
-    // Reset after 2s
-    setTimeout(() => renderHiLo(document.getElementById('game-body')), 2500);
+function playHiLo(choice,current){
+    const bet=getBet('hilo');if(!bet)return;
+    const cards=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const next=Math.floor(Math.random()*13);
+    const won=(choice==='hi'&&next>current)||(choice==='lo'&&next<current);
+    const card=document.getElementById('hilo-card');
+    card.textContent='?'; card.classList.add('flip-anim');
+    setTimeout(()=>{
+        card.classList.remove('flip-anim'); card.textContent=cards[next];
+        card.style.borderColor=won?'var(--green)':'var(--red)';
+        if(won){recordGame('Hi-Lo',bet,true,bet*0.98);document.getElementById('hilo-msg').innerHTML=showWinResult(bet*1.98);showConfetti();}
+        else{recordGame('Hi-Lo',bet,false,-bet);document.getElementById('hilo-msg').innerHTML=showLoseResult(bet);}
+        setTimeout(()=>renderHiLo(document.getElementById('game-body')),2500);
+    },800);
 }
 
-// ═══════════════════════════════════════════
-// 9. KENO - Number Pick
-// ═══════════════════════════════════════════
-let kenoSelected = [];
-function renderKeno(body) {
-    kenoSelected = [];
-    body.innerHTML = `
-        <div style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:8px;">Pick 1-10 numbers, then draw!</div>
+// ═══════════════════════════════════════════════════════════════
+// 9. KENO — Number Grid
+// ═══════════════════════════════════════════════════════════════
+let kenoSelected=[];
+function renderKeno(body){
+    kenoSelected=[];
+    body.innerHTML=`
+        <div style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:8px;">Pick 1-10 numbers • More picks = higher potential</div>
         <div id="keno-board" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;max-width:320px;margin:0 auto;"></div>
-        <div style="text-align:center;margin:8px 0;font-size:13px;">Selected: <b id="keno-count">0</b>/10</div>
+        <div style="text-align:center;margin:8px 0;font-size:13px;font-weight:600;">Selected: <span id="keno-count" style="color:var(--accent);">0</span>/10</div>
         ${betUI('keno')}
-        <button class="play-button" onclick="playKeno()">🔢 DRAW</button>
-        <div id="keno-msg" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
-    const board = document.getElementById('keno-board');
-    for (let i = 1; i <= 40; i++) {
-        const cell = document.createElement('button');
-        cell.style.cssText = 'padding:8px 4px;background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;color:white;font-size:12px;font-weight:700;cursor:pointer;';
-        cell.textContent = i;
-        cell.id = `kn-${i}`;
-        cell.onclick = () => toggleKeno(i, cell);
-        board.appendChild(cell);
-    }
+        <button class="play-button" id="keno-btn" onclick="playKeno()">🔢 DRAW NUMBERS</button>
+        <div id="keno-msg" style="min-height:80px;margin-top:12px;"></div>`;
+    const board=document.getElementById('keno-board');
+    for(let i=1;i<=40;i++){const c=document.createElement('button');c.style.cssText='padding:7px 2px;background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;color:white;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;';c.textContent=i;c.id=`kn-${i}`;c.onclick=()=>{if(kenoSelected.includes(i)){kenoSelected=kenoSelected.filter(x=>x!==i);c.style.borderColor='var(--bg4)';c.style.background='var(--bg2)';}else if(kenoSelected.length<10){kenoSelected.push(i);c.style.borderColor='var(--accent)';c.style.background='rgba(139,92,246,0.2)';}document.getElementById('keno-count').textContent=kenoSelected.length;};board.appendChild(c);}
 }
-function toggleKeno(n, cell) {
-    if (kenoSelected.includes(n)) {
-        kenoSelected = kenoSelected.filter(x => x !== n);
-        cell.style.borderColor = 'var(--bg4)'; cell.style.background = 'var(--bg2)';
-    } else if (kenoSelected.length < 10) {
-        kenoSelected.push(n);
-        cell.style.borderColor = 'var(--accent)'; cell.style.background = 'rgba(139,92,246,0.2)';
-    }
-    document.getElementById('keno-count').textContent = kenoSelected.length;
-}
-function playKeno() {
-    if (kenoSelected.length < 1) return alert('Pick at least 1 number!');
-    const bet = getBet('keno'); if (!bet) return;
-    
-    let drawn = [];
-    while (drawn.length < 10) { const n = Math.floor(Math.random()*40)+1; if (!drawn.includes(n)) drawn.push(n); }
-    
-    // Highlight drawn numbers
-    drawn.forEach(n => { const cell = document.getElementById(`kn-${n}`); if (cell) { cell.style.background = kenoSelected.includes(n) ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.2)'; cell.style.borderColor = kenoSelected.includes(n) ? 'var(--green)' : 'var(--red)'; }});
-    
-    const hits = kenoSelected.filter(n => drawn.includes(n)).length;
-    const picked = kenoSelected.length;
-    // Payout table based on picks and hits
-    const payouts = { 1:{1:3}, 2:{2:6}, 3:{2:2,3:10}, 4:{2:1.5,3:5,4:20}, 5:{3:3,4:10,5:50}, 6:{3:2,4:5,5:20,6:100}, 7:{4:3,5:10,6:30,7:100}, 8:{4:2,5:5,6:15,7:50,8:100}, 9:{5:3,6:10,7:30,8:50,9:100}, 10:{5:2,6:5,7:15,8:40,9:80,10:100} };
-    const mult = payouts[picked]?.[hits] || 0;
-    
-    const res = document.getElementById('keno-msg');
-    if (mult > 0) {
-        const profit = bet * mult - bet;
-        recordGame('Keno', bet, true, profit);
-        res.innerHTML = `<div class="win-popup">🎯 ${hits}/${picked} hits! ${mult}x +${(bet*mult).toFixed(2)}</div>`;
-    } else {
-        recordGame('Keno', bet, false, -bet);
-        res.innerHTML = `<div class="lose-popup">${hits}/${picked} hits. -${bet.toFixed(2)}</div>`;
-    }
+function playKeno(){
+    if(kenoSelected.length<1)return alert('Pick at least 1 number!');
+    const bet=getBet('keno');if(!bet)return;
+    document.getElementById('keno-btn').disabled=true;
+    let drawn=[];while(drawn.length<10){const n=Math.floor(Math.random()*40)+1;if(!drawn.includes(n))drawn.push(n);}
+    // Animate drawn numbers
+    drawn.forEach((n,idx)=>{setTimeout(()=>{const cell=document.getElementById(`kn-${n}`);if(cell){cell.style.background=kenoSelected.includes(n)?'rgba(16,185,129,0.4)':'rgba(239,68,68,0.15)';cell.style.borderColor=kenoSelected.includes(n)?'var(--green)':'var(--red)';cell.classList.add('bounce');}},idx*200);});
+    setTimeout(()=>{
+        const hits=kenoSelected.filter(n=>drawn.includes(n)).length;
+        const picked=kenoSelected.length;
+        const payouts={1:{1:3.5},2:{2:6},3:{2:2,3:12},4:{2:1.5,3:5,4:25},5:{3:3,4:12,5:60},6:{3:2,4:5,5:25,6:100},7:{4:3,5:12,6:36,7:100},8:{4:2,5:6,6:18,7:50,8:100},9:{5:4,6:12,7:36,8:60,9:100},10:{5:3,6:6,7:18,8:50,9:80,10:100}};
+        const mult=payouts[picked]?.[hits]||0;
+        if(mult>0){const profit=bet*mult-bet;recordGame('Keno',bet,true,profit);document.getElementById('keno-msg').innerHTML=showWinResult(bet*mult);if(mult>=10)showConfetti();}
+        else{recordGame('Keno',bet,false,-bet);document.getElementById('keno-msg').innerHTML=showLoseResult(bet);}
+        document.getElementById('keno-btn').disabled=false;
+    },2200);
 }
 
-// ═══════════════════════════════════════════
-// 10. ROULETTE
-// ═══════════════════════════════════════════
-function renderRoulette(body) {
-    body.innerHTML = `
-        <div class="result-area">
-            <div id="roul-ball" style="font-size:64px;transition:transform 2s;">🔴</div>
-            <div id="roul-num" style="font-size:24px;font-weight:800;min-height:30px;"></div>
+// ═══════════════════════════════════════════════════════════════
+// 10. ROULETTE — Color Bet
+// ═══════════════════════════════════════════════════════════════
+let roulChoice=null;
+function renderRoulette(body){
+    roulChoice=null;
+    body.innerHTML=`
+        <div style="text-align:center;padding:20px 0;">
+            <div id="roul-ball" style="font-size:64px;display:inline-block;transition:transform 0.1s;">🔴</div>
+            <div id="roul-num" style="font-size:28px;font-weight:800;min-height:36px;margin-top:8px;"></div>
         </div>
         <div class="choice-row">
-            <button class="choice-btn" id="r-red" onclick="roulChoice='red';document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">🔴 Red<br><small>2x</small></button>
-            <button class="choice-btn" id="r-blk" onclick="roulChoice='black';document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">⚫ Black<br><small>2x</small></button>
-            <button class="choice-btn" id="r-grn" onclick="roulChoice='green';document.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')">🟢 Green<br><small>36x</small></button>
+            <button class="choice-btn" id="r-red" onclick="roulChoice='red';document.querySelectorAll('[id^=r-]').forEach(b=>b.classList.remove('selected'));document.getElementById('r-red').classList.add('selected')">🔴 Red<br><small>2x</small></button>
+            <button class="choice-btn" id="r-blk" onclick="roulChoice='black';document.querySelectorAll('[id^=r-]').forEach(b=>b.classList.remove('selected'));document.getElementById('r-blk').classList.add('selected')">⚫ Black<br><small>2x</small></button>
+            <button class="choice-btn" id="r-grn" onclick="roulChoice='green';document.querySelectorAll('[id^=r-]').forEach(b=>b.classList.remove('selected'));document.getElementById('r-grn').classList.add('selected')">🟢 Green<br><small>36x</small></button>
         </div>
+        <div style="text-align:center;font-size:11px;color:var(--text3);margin:6px 0;">European Roulette • RTP 97.3%</div>
         ${betUI('roul')}
-        <button class="play-button" onclick="playRoulette()">🔴 SPIN</button>
-        <div id="roul-msg" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
+        <button class="play-button" id="roul-btn" onclick="playRoulette()">🔴 SPIN ROULETTE</button>
+        <div id="roul-msg" style="min-height:80px;margin-top:12px;"></div>`;
 }
-let roulChoice = null;
-function playRoulette() {
-    if (!roulChoice) return alert('Pick Red, Black, or Green!');
-    const bet = getBet('roul'); if (!bet) return;
-    
-    const ball = document.getElementById('roul-ball');
-    const colors = ['🔴','⚫','🔴','⚫','🟢','🔴','⚫','🔴','⚫'];
-    let count = 0;
-    const anim = setInterval(() => {
-        ball.textContent = colors[Math.floor(Math.random()*colors.length)];
-        ball.style.transform = `rotate(${count*30}deg)`;
-        if (++count > 25) {
-            clearInterval(anim);
-            ball.style.transform = 'rotate(0)';
-            
-            const rand = Math.random();
-            let result; 
-            if (rand < 0.027) result = 'green';
-            else if (rand < 0.5) result = 'red';
-            else result = 'black';
-            
-            const num = result === 'green' ? 0 : Math.floor(Math.random()*36)+1;
-            ball.textContent = result==='green' ? '🟢' : result==='red' ? '🔴' : '⚫';
-            document.getElementById('roul-num').textContent = num;
-            
-            const won = roulChoice === result;
-            const mult = roulChoice === 'green' ? 36 : 2;
-            
-            if (won) {
-                const profit = bet * (mult - 1);
-                recordGame('Roulette', bet, true, profit);
-                document.getElementById('roul-msg').innerHTML = `<div class="win-popup">${result} ${num}! ${mult}x +${(bet*mult).toFixed(2)}</div>`;
-            } else {
-                recordGame('Roulette', bet, false, -bet);
-                document.getElementById('roul-msg').innerHTML = `<div class="lose-popup">${result} ${num}! -${bet.toFixed(2)}</div>`;
-            }
-        }
-    }, 70);
+function playRoulette(){
+    if(!roulChoice)return alert('Pick Red, Black, or Green!');
+    const bet=getBet('roul');if(!bet)return;
+    document.getElementById('roul-btn').disabled=true;
+    const ball=document.getElementById('roul-ball');
+    const colors=['🔴','⚫','🔴','⚫','🟢','🔴','⚫','🔴','⚫'];
+    let c=0;
+    const anim=setInterval(()=>{ball.textContent=colors[Math.floor(Math.random()*colors.length)];ball.style.transform=`rotate(${c*15}deg)`;if(++c>30){clearInterval(anim);ball.style.transform='rotate(0)';
+        const rand=Math.random(); let result;
+        if(rand<0.027)result='green'; else if(rand<0.5135)result='red'; else result='black';
+        const num=result==='green'?0:Math.floor(Math.random()*36)+1;
+        ball.textContent=result==='green'?'🟢':result==='red'?'🔴':'⚫';
+        document.getElementById('roul-num').textContent=num;
+        ball.classList.add('bounce');
+        const won=roulChoice===result;
+        const mult=roulChoice==='green'?36:2;
+        if(won){recordGame('Roulette',bet,true,bet*(mult-1));document.getElementById('roul-msg').innerHTML=showWinResult(bet*mult);if(mult>=36)showConfetti();else showConfetti();}
+        else{recordGame('Roulette',bet,false,-bet);ball.classList.add('shake');document.getElementById('roul-msg').innerHTML=showLoseResult(bet);}
+        setTimeout(()=>{ball.className='';document.getElementById('roul-btn').disabled=false;},2000);
+    }},60);
 }
 
-// ═══════════════════════════════════════════
-// 11. LIMBO - Target Multiplier
-// ═══════════════════════════════════════════
-function renderLimbo(body) {
-    body.innerHTML = `
-        <div class="result-area">
-            <div id="limbo-res" style="font-size:48px;font-weight:800;color:var(--gold);">?</div>
+// ═══════════════════════════════════════════════════════════════
+// 11. LIMBO — Target Multiplier
+// ═══════════════════════════════════════════════════════════════
+function renderLimbo(body){
+    body.innerHTML=`
+        <div style="text-align:center;padding:20px 0;">
+            <div id="limbo-res" style="font-size:52px;font-weight:800;color:var(--gold);min-height:60px;">?</div>
         </div>
         <div style="text-align:center;margin:12px 0;">
-            <div style="font-size:12px;color:var(--text3);">Target Multiplier:</div>
-            <input type="number" id="limbo-target" value="2" min="1.01" max="1000" step="0.1"
-                style="width:120px;padding:10px;background:var(--bg2);border:2px solid var(--gold);border-radius:10px;color:var(--gold);font-size:20px;font-weight:800;text-align:center;">
-            <div style="font-size:11px;color:var(--text3);margin-top:4px;">Win chance: <span id="limbo-chance">47.5%</span></div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Target Multiplier</div>
+            <input type="number" id="limbo-target" value="2" min="1.01" max="1000" step="0.1" style="width:140px;padding:12px;background:var(--bg2);border:2px solid var(--gold);border-radius:10px;color:var(--gold);font-size:22px;font-weight:800;text-align:center;" oninput="updateLimboChance()">
+            <div style="font-size:11px;color:var(--text3);margin-top:6px;">Win chance: <b id="limbo-chance">48.5%</b> • RTP 97%</div>
         </div>
         ${betUI('limbo')}
-        <button class="play-button" onclick="playLimbo()">📊 PLAY</button>
-        <div id="limbo-msg" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
-    document.getElementById('limbo-target').oninput = () => {
-        const t = parseFloat(document.getElementById('limbo-target').value) || 2;
-        document.getElementById('limbo-chance').textContent = ((0.95/t)*100).toFixed(1) + '%';
-    };
+        <button class="play-button" id="limbo-btn" onclick="playLimbo()">📊 PLAY LIMBO</button>
+        <div id="limbo-msg" style="min-height:80px;margin-top:12px;"></div>`;
+    updateLimboChance();
 }
-function playLimbo() {
-    const bet = getBet('limbo'); if (!bet) return;
-    const target = parseFloat(document.getElementById('limbo-target').value) || 2;
-    if (target < 1.01) return alert('Min target: 1.01x');
-    
-    // Generate result
-    const result = RTP.limbo / Math.random(); // Exponential distribution with 97% RTP
-    const won = result >= target;
-    
-    const res = document.getElementById('limbo-res');
-    res.textContent = result.toFixed(2) + 'x';
-    res.style.color = won ? 'var(--green)' : 'var(--red)';
-    
-    if (won) {
-        const profit = bet * (target - 1);
-        recordGame('Limbo', bet, true, profit);
-        document.getElementById('limbo-msg').innerHTML = `<div class="win-popup">${result.toFixed(2)}x ≥ ${target}x! +${(bet*target).toFixed(2)}</div>`;
-    } else {
-        recordGame('Limbo', bet, false, -bet);
-        document.getElementById('limbo-msg').innerHTML = `<div class="lose-popup">${result.toFixed(2)}x < ${target}x! -${bet.toFixed(2)}</div>`;
-    }
+function updateLimboChance(){const t=parseFloat(document.getElementById('limbo-target').value)||2;document.getElementById('limbo-chance').textContent=((RTP.limbo/t)*100).toFixed(1)+'%';}
+function playLimbo(){
+    const bet=getBet('limbo');if(!bet)return;
+    document.getElementById('limbo-btn').disabled=true;
+    const target=parseFloat(document.getElementById('limbo-target').value)||2;
+    if(target<1.01)return alert('Min target: 1.01x');
+    const result=RTP.limbo/Math.random();
+    const won=result>=target;
+    const res=document.getElementById('limbo-res');
+    // Counting animation
+    let count=1;const anim=setInterval(()=>{count+=0.1+(count*0.05);res.textContent=count.toFixed(2)+'x';if(count>=result||count>result+2){clearInterval(anim);
+        res.textContent=result.toFixed(2)+'x';
+        res.style.color=won?'var(--green)':'var(--red)';
+        res.classList.add('bounce');
+        if(won){recordGame('Limbo',bet,true,bet*(target-1));document.getElementById('limbo-msg').innerHTML=showWinResult(bet*target);if(target>=5)showConfetti();}
+        else{recordGame('Limbo',bet,false,-bet);document.getElementById('limbo-msg').innerHTML=showLoseResult(bet);}
+        setTimeout(()=>{res.style.color='var(--gold)';res.className='';document.getElementById('limbo-btn').disabled=false;},2000);
+    }},40);
 }
 
-// ═══════════════════════════════════════════
-// 12. TOWER - Climb Floors
-// ═══════════════════════════════════════════
-let towerState = { active: false };
-function renderTower(body) {
-    body.innerHTML = `
-        <div class="multi-display"><div class="multi-value" id="tw-multi">1.00x</div><div class="multi-label">Floor <span id="tw-floor">0</span>/10</div></div>
-        <div id="tw-grid" style="display:flex;flex-direction:column-reverse;gap:4px;max-width:320px;margin:12px auto;"></div>
+// ═══════════════════════════════════════════════════════════════
+// 12. TOWER — Climb 10 Floors
+// ═══════════════════════════════════════════════════════════════
+let towerState={active:false};
+function renderTower(body){
+    body.innerHTML=`
+        <div class="multi-display"><div class="multi-value" id="tw-multi">1.00x</div><div class="multi-label">Floor <span id="tw-floor">0</span>/10 • Cash out anytime</div></div>
+        <div id="tw-grid" style="display:flex;flex-direction:column-reverse;gap:3px;max-width:300px;margin:12px auto;"></div>
         ${betUI('tower')}
         <button class="play-button" id="tw-start" onclick="startTower()">🏗️ START CLIMB</button>
-        <button class="play-button hidden" id="tw-cash" onclick="cashTower()" style="background:linear-gradient(135deg,var(--green),#059669)">💰 CASH OUT</button>
-        <div id="tw-msg" class="mt-12 text-center" style="min-height:40px;"></div>
-    `;
-    buildTower();
+        <button class="play-button hidden" id="tw-cash" onclick="cashTower()" style="background:linear-gradient(135deg,var(--green),#059669)">💰 CASH OUT (<span id="tw-amt">0.00</span>)</button>
+        <div id="tw-msg" style="min-height:80px;margin-top:12px;"></div>`;
+    buildTowerGrid();
 }
-function buildTower() {
-    const grid = document.getElementById('tw-grid');
-    grid.innerHTML = '';
-    for (let floor = 0; floor < 10; floor++) {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;gap:4px;';
-        for (let col = 0; col < 3; col++) {
-            const cell = document.createElement('button');
-            cell.style.cssText = 'flex:1;padding:12px;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;font-size:16px;cursor:pointer;';
-            cell.textContent = '?';
-            cell.id = `tw-${floor}-${col}`;
-            cell.onclick = () => clickTower(floor, col);
-            row.appendChild(cell);
-        }
-        grid.appendChild(row);
+function buildTowerGrid(){const g=document.getElementById('tw-grid');g.innerHTML='';for(let f=0;f<10;f++){const row=document.createElement('div');row.style.cssText='display:flex;gap:3px;';for(let c=0;c<3;c++){const cell=document.createElement('button');cell.style.cssText='flex:1;padding:10px;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;font-size:14px;cursor:pointer;transition:all 0.2s;';cell.textContent=`F${f+1}`;cell.id=`tw-${f}-${c}`;cell.onclick=()=>clickTower(f,c);row.appendChild(cell);}g.appendChild(row);}}
+function startTower(){
+    const bet=getBet('tower');if(!bet)return;
+    let bombs=[];for(let i=0;i<10;i++)bombs.push(Math.floor(Math.random()*3));
+    towerState={active:true,bet,bombs,floor:0,multi:1};
+    document.getElementById('tw-start').classList.add('hidden');document.getElementById('tw-cash').classList.remove('hidden');
+    document.getElementById('tw-msg').innerHTML='<span class="text-muted">🏗️ Pick a tile on Floor 1!</span>';
+    buildTowerGrid();
+}
+function clickTower(floor,col){
+    if(!towerState.active||floor!==towerState.floor)return;
+    const cell=document.getElementById(`tw-${floor}-${col}`);
+    if(towerState.bombs[floor]===col){
+        cell.textContent='💣';cell.style.background='rgba(239,68,68,0.3)';cell.style.borderColor='var(--red)';cell.classList.add('mine-explode');
+        towerState.active=false;
+        towerState.bombs.forEach((b,i)=>{setTimeout(()=>{const c=document.getElementById(`tw-${i}-${b}`);c.textContent='💣';c.style.background='rgba(239,68,68,0.1)';},i*80);});
+        recordGame('Tower',towerState.bet,false,-towerState.bet);
+        document.getElementById('tw-msg').innerHTML=showLoseResult(towerState.bet);
+        document.getElementById('tw-cash').classList.add('hidden');document.getElementById('tw-start').classList.remove('hidden');
+    }else{
+        cell.textContent='⭐';cell.style.background='rgba(16,185,129,0.2)';cell.style.borderColor='var(--green)';cell.classList.add('gem-sparkle');
+        towerState.floor++;towerState.multi*=1.45;
+        document.getElementById('tw-multi').textContent=towerState.multi.toFixed(2)+'x';
+        document.getElementById('tw-floor').textContent=towerState.floor;
+        document.getElementById('tw-amt').textContent=(towerState.bet*towerState.multi).toFixed(2);
+        if(towerState.floor>=10){cashTower();}
     }
 }
-function startTower() {
-    const bet = getBet('tower'); if (!bet) return;
-    // Each floor has 1 bomb in 3 columns
-    let bombs = [];
-    for (let i = 0; i < 10; i++) bombs.push(Math.floor(Math.random()*3));
-    towerState = { active: true, bet, bombs, floor: 0, multi: 1 };
-    document.getElementById('tw-start').classList.add('hidden');
-    document.getElementById('tw-cash').classList.remove('hidden');
-    document.getElementById('tw-msg').innerHTML = '<span class="text-muted">Pick a tile on floor 1!</span>';
-    buildTower();
-}
-function clickTower(floor, col) {
-    if (!towerState.active || floor !== towerState.floor) return;
-    const cell = document.getElementById(`tw-${floor}-${col}`);
-    
-    if (towerState.bombs[floor] === col) {
-        cell.textContent = '💣'; cell.style.background = 'rgba(239,68,68,0.3)'; cell.style.borderColor = 'var(--red)';
-        towerState.active = false;
-        // Reveal all bombs
-        towerState.bombs.forEach((b, i) => { document.getElementById(`tw-${i}-${b}`).textContent = '💣'; document.getElementById(`tw-${i}-${b}`).style.background = 'rgba(239,68,68,0.1)'; });
-        recordGame('Tower', towerState.bet, false, -towerState.bet);
-        document.getElementById('tw-msg').innerHTML = `<div class="lose-popup">💣 Floor ${floor+1}! -${towerState.bet.toFixed(2)}</div>`;
-        document.getElementById('tw-cash').classList.add('hidden');
-        document.getElementById('tw-start').classList.remove('hidden');
-    } else {
-        cell.textContent = '⭐'; cell.style.background = 'rgba(16,185,129,0.2)'; cell.style.borderColor = 'var(--green)';
-        towerState.floor++;
-        towerState.multi *= 1.45;
-        document.getElementById('tw-multi').textContent = towerState.multi.toFixed(2) + 'x';
-        document.getElementById('tw-floor').textContent = towerState.floor;
-        
-        if (towerState.floor >= 10) {
-            towerState.active = false;
-            const profit = towerState.bet * towerState.multi - towerState.bet;
-            recordGame('Tower', towerState.bet, true, profit);
-            document.getElementById('tw-msg').innerHTML = `<div class="win-popup">🏆 TOP! ${towerState.multi.toFixed(2)}x +${(towerState.bet*towerState.multi).toFixed(2)}</div>`;
-            document.getElementById('tw-cash').classList.add('hidden');
-            document.getElementById('tw-start').classList.remove('hidden');
-        }
-    }
-}
-function cashTower() {
-    if (!towerState.active) return;
-    towerState.active = false;
-    const profit = towerState.bet * towerState.multi - towerState.bet;
-    recordGame('Tower', towerState.bet, true, profit);
-    document.getElementById('tw-msg').innerHTML = `<div class="win-popup">🏗️ Floor ${towerState.floor}! ${towerState.multi.toFixed(2)}x +${(towerState.bet*towerState.multi).toFixed(2)}</div>`;
-    towerState.bombs.forEach((b, i) => { document.getElementById(`tw-${i}-${b}`).textContent = '💣'; document.getElementById(`tw-${i}-${b}`).style.background = 'rgba(239,68,68,0.1)'; });
-    document.getElementById('tw-cash').classList.add('hidden');
-    document.getElementById('tw-start').classList.remove('hidden');
+function cashTower(){
+    if(!towerState.active)return;towerState.active=false;
+    const profit=towerState.bet*towerState.multi-towerState.bet;
+    recordGame('Tower',towerState.bet,true,profit);
+    document.getElementById('tw-msg').innerHTML=showWinResult(towerState.bet*towerState.multi);showConfetti();
+    towerState.bombs.forEach((b,i)=>{setTimeout(()=>{const c=document.getElementById(`tw-${i}-${b}`);c.textContent='💣';c.style.background='rgba(239,68,68,0.1)';},i*80);});
+    document.getElementById('tw-cash').classList.add('hidden');document.getElementById('tw-start').classList.remove('hidden');
 }
