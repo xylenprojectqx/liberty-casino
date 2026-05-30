@@ -41,14 +41,24 @@ async function fbGet(path) {
 
 async function fbSet(path, data) {
     try {
-        await fetch(`${DB_URL}/${path}.json`, { method: 'PUT', body: JSON.stringify(data) });
-    } catch(e) { console.error('FB SET error:', e); }
+        const r = await fetch(`${DB_URL}/${path}.json`, { 
+            method: 'PUT', 
+            body: JSON.stringify(data),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return r.ok;
+    } catch(e) { console.error('FB SET error:', e); return false; }
 }
 
 async function fbUpdate(path, data) {
     try {
-        await fetch(`${DB_URL}/${path}.json`, { method: 'PATCH', body: JSON.stringify(data) });
-    } catch(e) { console.error('FB UPDATE error:', e); }
+        const r = await fetch(`${DB_URL}/${path}.json`, { 
+            method: 'PATCH', 
+            body: JSON.stringify(data),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return r.ok;
+    } catch(e) { console.error('FB UPDATE error:', e); return false; }
 }
 
 // === LOAD USER FROM FIREBASE ===
@@ -69,19 +79,18 @@ async function loadUser() {
 async function saveUser() {
     if (!currentUserId) return;
     user.name = currentUserName;
-    try {
-        await fetch(`${DB_URL}/users/${currentUserId}.json`, { 
-            method: 'PUT', 
-            body: JSON.stringify(user),
-            headers: { 'Content-Type': 'application/json' }
-        });
-    } catch(e) { 
-        console.error('Save failed, retrying...', e);
-        // Retry once after 1 second
-        setTimeout(async () => {
-            try { await fetch(`${DB_URL}/users/${currentUserId}.json`, { method: 'PUT', body: JSON.stringify(user), headers: { 'Content-Type': 'application/json' } }); } catch(e2) {}
-        }, 1000);
+    const url = `${DB_URL}/users/${currentUserId}.json`;
+    const body = JSON.stringify(user);
+    
+    // Use sendBeacon as fallback (works even when page is closing)
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, body);
     }
+    
+    // Also try fetch
+    try {
+        await fetch(url, { method: 'PUT', body: body, headers: { 'Content-Type': 'application/json' } });
+    } catch(e) { console.error('Save error:', e); }
 }
 
 // === INIT ===
@@ -93,6 +102,10 @@ window.addEventListener('load', () => {
         switchTab('home');
     }, 2800);
 });
+
+// Save when page closes
+window.addEventListener('beforeunload', () => { saveUser(); });
+window.addEventListener('pagehide', () => { saveUser(); });
 
 // === BALANCE ===
 function updateBal() {
