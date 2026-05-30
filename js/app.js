@@ -190,31 +190,27 @@ function renderWallet() {
             <div class="wallet-label">Total Balance</div>
             <div class="wallet-amount">${user.balance.toFixed(2)} <span class="currency">USDT</span></div>
             <div class="wallet-actions">
-                <button class="wallet-btn dep" onclick="showDeposit()">Deposit</button>
-                <button class="wallet-btn wit" onclick="showWithdraw()">Withdraw</button>
+                <button class="wallet-btn dep" onclick="goToBot('deposit')">Deposit</button>
+                <button class="wallet-btn wit" onclick="goToBot('withdraw')">Withdraw</button>
             </div>
-        </div><div id="wallet-content"></div>`;
+        </div>
+        <div style="text-align:center;padding:20px;color:var(--text3);font-size:13px;">
+            <p>💰 Deposits & withdrawals are handled via the bot.</p>
+            <p style="margin-top:8px;">Close this app and use the bot buttons to deposit or withdraw.</p>
+            <button class="play-button mt-20" onclick="goToBot('deposit')" style="background:linear-gradient(135deg,var(--green),#059669)">💰 Go to Bot to Deposit</button>
+        </div>`;
 }
-function showDeposit() {
-    document.getElementById('wallet-content').innerHTML = `
-        <div class="section-title"><span>💳</span> Select Method</div>
-        <div class="payment-option" onclick="showAddr('TRX')"><div>💠</div><div><div class="po-name">TRX (Tron)</div><div class="po-network">Tron Network</div></div></div>
-        <div class="payment-option" onclick="showAddr('USDT_TRC20')"><div>💵</div><div><div class="po-name">USDT</div><div class="po-network">TRC-20</div></div></div>
-        <div class="payment-option" onclick="showAddr('USDT_SOL')"><div>🟣</div><div><div class="po-name">USDT</div><div class="po-network">Solana</div></div></div>
-        <div id="addr-area"></div>`;
+
+function goToBot(action) {
+    if (tg) {
+        tg.close();
+    } else {
+        alert('Close this app and use the bot to deposit/withdraw.');
+    }
 }
-function showAddr(m) {
-    document.getElementById('addr-area').innerHTML = `
-        <div class="address-display">${ADDRESSES[m]}<button class="copy-btn" onclick="navigator.clipboard.writeText('${ADDRESSES[m]}');this.textContent='✓'">Copy</button></div>
-        <p class="text-sm text-muted text-center">Send screenshot to @Liberty_Help<br>Min: 5 USDT • Credited 5-30 min</p>`;
-}
-function showWithdraw() {
-    document.getElementById('wallet-content').innerHTML = `
-        <div class="section-title"><span>📤</span> Withdraw</div>
-        <p class="text-sm text-muted">Message @Liberty_Help with:</p>
-        <p class="text-sm" style="margin:8px 0;">• ID: <code>${currentUserId}</code><br>• Amount<br>• Wallet address</p>
-        <p class="text-sm text-muted">Min: 10 USDT • 1-24h</p>`;
-}
+
+function showDeposit() { goToBot('deposit'); }
+function showWithdraw() { goToBot('withdraw'); }
 
 // === REWARDS ===
 function renderRewards() {
