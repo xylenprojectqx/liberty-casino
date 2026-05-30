@@ -1,10 +1,21 @@
 // === LIBERTY CASINO - Premium Games Engine v3 ===
-const EDGE = 0.03;
+let EDGE = 0.03;
 
-// === RTP Rates (Real Casino Standards) ===
-const RTP = { coinflip: 0.97, dice: 0.97, slots: 0.96, mines: 0.97, crash: 0.96, plinko: 0.97, wheel: 0.95, hilo: 0.97, keno: 0.95, roulette: 0.973, limbo: 0.97, tower: 0.97 };
-const CF_MULTI = 1.98;
-const DICE_RTP = 0.97;
+// === RTP Rates (Real Casino Standards) - Can be overridden by admin via Firebase ===
+let RTP = { coinflip: 0.97, dice: 0.97, slots: 0.96, mines: 0.97, crash: 0.96, plinko: 0.97, wheel: 0.95, hilo: 0.97, keno: 0.95, roulette: 0.973, limbo: 0.97, tower: 0.97 };
+let CF_MULTI = 1.98;
+let DICE_RTP = 0.97;
+
+// Dynamic RTP override (loaded from Firebase by features.js)
+function applyDynamicRTP(newRTP) {
+    if (!newRTP || newRTP < 0.8 || newRTP > 0.99) return;
+    EDGE = 1 - newRTP;
+    for (const key of Object.keys(RTP)) {
+        RTP[key] = newRTP;
+    }
+    CF_MULTI = newRTP * 2 + 0.04; // Adjust coinflip multiplier
+    DICE_RTP = newRTP;
+}
 
 // === EFFECTS ===
 function showConfetti() {

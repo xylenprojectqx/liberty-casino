@@ -232,8 +232,11 @@ async function claimDaily() {
 // === PROFILE / ADMIN ===
 function renderProfile() {
     if (isAdmin) {
-        // Admin paneli render et ve jackpot bilgisini yükle
-        setTimeout(() => loadJackpotAdmin(), 100);
+        // Admin paneli render et ve verileri yükle
+        setTimeout(() => {
+            loadAdminQuickStats();
+            loadJackpotAdmin();
+        }, 100);
         return renderAdminPanel();
     }
     const wr = user.totalGames > 0 ? ((user.totalWins/user.totalGames)*100).toFixed(1) : '0.0';
@@ -250,27 +253,239 @@ function renderAdminPanel() {
     return `
         <div class="section-title"><span>🔐</span> ADMIN PANEL</div>
         
-        <div class="section-title mt-20"><span>🎰</span> Jackpot Yönetimi</div>
+        <!-- Quick Stats Banner -->
+        <div id="admin-quick-stats" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:12px;padding:14px;margin-bottom:12px;border:1px solid var(--bg4);">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+                <div><div style="font-size:10px;color:var(--text3);">Kullanıcılar</div><div style="font-size:16px;font-weight:800;color:var(--accent);" id="qs-users">-</div></div>
+                <div><div style="font-size:10px;color:var(--text3);">Toplam Bakiye</div><div style="font-size:16px;font-weight:800;color:var(--gold);" id="qs-balance">-</div></div>
+                <div><div style="font-size:10px;color:var(--text3);">House Profit</div><div style="font-size:16px;font-weight:800;color:var(--green);" id="qs-profit">-</div></div>
+            </div>
+        </div>
+        
+        <!-- Admin Menu Tabs -->
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+            <button class="play-button" onclick="showAdminSection('jackpot')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#f59e0b,#d97706)">🎰 Jackpot</button>
+            <button class="play-button" onclick="showAdminSection('balance')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,var(--green),#059669)">💰 Bakiye</button>
+            <button class="play-button" onclick="showAdminSection('users')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#8b5cf6,#6d28d9)">👥 Kullanıcılar</button>
+            <button class="play-button" onclick="showAdminSection('withdraw')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#ef4444,#dc2626)">📤 Çekimler</button>
+            <button class="play-button" onclick="showAdminSection('broadcast')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#06b6d4,#0891b2)">📢 Broadcast</button>
+            <button class="play-button" onclick="showAdminSection('rain')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#3b82f6,#2563eb)">🌧️ Rain</button>
+            <button class="play-button" onclick="showAdminSection('ban')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#f43f5e,#e11d48)">🚫 Ban</button>
+            <button class="play-button" onclick="showAdminSection('reset')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#64748b,#475569)">🔄 Reset</button>
+            <button class="play-button" onclick="showAdminSection('rtp')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#a855f7,#7c3aed)">⚙️ RTP</button>
+            <button class="play-button" onclick="showAdminSection('stats')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#14b8a6,#0d9488)">📊 İstatistik</button>
+            <button class="play-button" onclick="showAdminSection('tournament')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:linear-gradient(135deg,#eab308,#ca8a04)">🏆 Turnuva</button>
+            <button class="play-button" onclick="showAdminSection('commands')" style="flex:1;min-width:45%;font-size:11px;padding:10px 8px;background:var(--bg3)">📋 Bot Komutları</button>
+        </div>
+        
+        <!-- Dynamic Content Area -->
+        <div id="admin-section-content"></div>
+    `;
+}
+
+function showAdminSection(section) {
+    const container = document.getElementById('admin-section-content');
+    switch(section) {
+        case 'jackpot': container.innerHTML = renderAdmJackpot(); break;
+        case 'balance': container.innerHTML = renderAdmBalance(); break;
+        case 'users': container.innerHTML = renderAdmUsers(); loadAdminUsers(); break;
+        case 'withdraw': container.innerHTML = renderAdmWithdraw(); loadPendingWithdrawals(); break;
+        case 'broadcast': container.innerHTML = renderAdmBroadcast(); break;
+        case 'rain': container.innerHTML = renderAdmRain(); break;
+        case 'ban': container.innerHTML = renderAdmBan(); break;
+        case 'reset': container.innerHTML = renderAdmReset(); break;
+        case 'rtp': container.innerHTML = renderAdmRTP(); break;
+        case 'stats': container.innerHTML = renderAdmStats(); loadAdminDetailedStats(); break;
+        case 'tournament': container.innerHTML = renderAdmTournament(); break;
+        case 'commands': container.innerHTML = renderAdmCommands(); break;
+    }
+}
+
+function renderAdmJackpot() {
+    return `
+        <div class="section-title"><span>🎰</span> Jackpot Yönetimi</div>
         <div id="jackpot-admin-info" style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:12px;padding:14px;margin-bottom:12px;text-align:center;border:1px solid rgba(245,158,11,0.3);">
             <div style="font-size:11px;color:var(--text3);">JACKPOT HAVUZU</div>
             <div style="font-size:24px;font-weight:800;color:var(--gold);margin-top:4px;" id="adm-jp-amount">Yükleniyor...</div>
         </div>
         <input class="input-field" type="number" id="adm-jp-give" placeholder="Verilecek miktar (USDT)" step="0.01" min="0.01">
         <button class="play-button" onclick="adminGiveJackpotNew()" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🎰 Jackpot Ver (Random Aktif Oyuncu)</button>
-        <div id="jackpot-result" style="margin-top:8px;"></div>
+        <div class="section-title mt-20"><span>📜</span> Jackpot Geçmişi</div>
+        <button class="play-button" onclick="loadJackpotHistory()" style="background:var(--bg3)">📜 Geçmişi Yükle</button>
+        <div id="jackpot-result" style="margin-top:8px;"></div>`;
+}
 
-        <div class="section-title mt-20"><span>💰</span> Add Balance</div>
+function renderAdmBalance() {
+    return `
+        <div class="section-title"><span>💰</span> Bakiye Yönetimi</div>
         <input class="input-field" type="number" id="adm-uid" placeholder="User ID">
-        <input class="input-field" type="number" id="adm-amount" placeholder="Amount (USDT)">
-        <button class="play-button" onclick="adminAddBal()" style="background:linear-gradient(135deg,var(--green),#059669)">💰 Add Balance</button>
-        <div class="section-title mt-20"><span>➖</span> Remove Balance</div>
-        <input class="input-field" type="number" id="adm-rm-uid" placeholder="User ID">
-        <input class="input-field" type="number" id="adm-rm-amount" placeholder="Amount">
-        <button class="play-button" onclick="adminRmBal()" style="background:linear-gradient(135deg,var(--red),#dc2626)">➖ Remove</button>
-        <div class="section-title mt-20"><span>👥</span> All Users</div>
-        <button class="play-button" onclick="loadAdminUsers()" style="background:var(--bg3)">📋 Load Users</button>
-        <div id="admin-users"></div>
-    `;
+        <input class="input-field" type="number" id="adm-amount" placeholder="Miktar (USDT)">
+        <div style="display:flex;gap:8px;">
+            <button class="play-button" onclick="adminAddBal()" style="flex:1;background:linear-gradient(135deg,var(--green),#059669)">💰 Ekle</button>
+            <button class="play-button" onclick="adminRmBal2()" style="flex:1;background:linear-gradient(135deg,var(--red),#dc2626)">➖ Çıkar</button>
+        </div>
+        <div class="section-title mt-20"><span>🔍</span> Kullanıcı Sorgula</div>
+        <input class="input-field" type="number" id="adm-lookup-uid" placeholder="User ID">
+        <button class="play-button" onclick="adminLookupUser()" style="background:var(--bg3)">🔍 Sorgula</button>
+        <div id="adm-lookup-result" style="margin-top:8px;"></div>`;
+}
+
+function renderAdmUsers() {
+    return `
+        <div class="section-title"><span>👥</span> Tüm Kullanıcılar</div>
+        <div id="admin-users" style="margin-top:8px;"><p class="text-sm text-muted">Yükleniyor...</p></div>`;
+}
+
+function renderAdmWithdraw() {
+    return `
+        <div class="section-title"><span>📤</span> Çekim Talepleri</div>
+        <div id="pending-withdrawals" style="margin-top:8px;"><p class="text-sm text-muted">Yükleniyor...</p></div>`;
+}
+
+function renderAdmBroadcast() {
+    return `
+        <div class="section-title"><span>📢</span> Broadcast Mesaj</div>
+        <p style="font-size:11px;color:var(--text3);margin-bottom:8px;">Tüm kullanıcılara mesaj gönder (Bot üzerinden)</p>
+        <textarea class="input-field" id="adm-broadcast-msg" placeholder="Mesajınız..." rows="3" style="resize:vertical;min-height:60px;"></textarea>
+        <button class="play-button" onclick="adminSendBroadcast()" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">📢 Broadcast Gönder</button>
+        <div id="broadcast-result" style="margin-top:8px;"></div>
+        <div style="margin-top:12px;padding:10px;background:var(--bg2);border-radius:8px;font-size:11px;color:var(--text3);">
+            💡 <b>Bot komutu:</b> /broadcast MESAJ
+        </div>`;
+}
+
+function renderAdmRain() {
+    return `
+        <div class="section-title"><span>🌧️</span> Rain / Airdrop</div>
+        <p style="font-size:11px;color:var(--text3);margin-bottom:8px;">Tüm aktif oyunculara kişi başı miktar dağıt</p>
+        <input class="input-field" type="number" id="adm-rain-amount" placeholder="Kişi başı miktar (USDT)" step="0.1" min="0.01">
+        <button class="play-button" onclick="adminDoRain()" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">🌧️ Rain Yap</button>
+        <div id="rain-result" style="margin-top:8px;"></div>
+        <div style="margin-top:12px;padding:10px;background:var(--bg2);border-radius:8px;font-size:11px;color:var(--text3);">
+            💡 <b>Bot komutu:</b> /rain MIKTAR
+        </div>`;
+}
+
+function renderAdmBan() {
+    return `
+        <div class="section-title"><span>🚫</span> Ban / Unban Yönetimi</div>
+        <input class="input-field" type="number" id="adm-ban-uid" placeholder="User ID">
+        <div style="display:flex;gap:8px;">
+            <button class="play-button" onclick="adminDoBan()" style="flex:1;background:linear-gradient(135deg,var(--red),#dc2626)">🚫 Banla</button>
+            <button class="play-button" onclick="adminDoUnban()" style="flex:1;background:linear-gradient(135deg,var(--green),#059669)">✅ Ban Kaldır</button>
+        </div>
+        <div id="ban-result" style="margin-top:8px;"></div>
+        <div class="section-title mt-20"><span>🚫</span> Banlı Kullanıcılar</div>
+        <button class="play-button" onclick="loadBannedUsers()" style="background:var(--bg3)">🚫 Banlıları Göster</button>
+        <div id="banned-list" style="margin-top:8px;"></div>
+        <div style="margin-top:12px;padding:10px;background:var(--bg2);border-radius:8px;font-size:11px;color:var(--text3);">
+            💡 <b>Bot komutları:</b> /ban USER_ID • /unban USER_ID
+        </div>`;
+}
+
+function renderAdmReset() {
+    return `
+        <div class="section-title"><span>🔄</span> Kullanıcı Reset</div>
+        <p style="font-size:11px;color:var(--text3);margin-bottom:8px;">Kullanıcının tüm verilerini sıfırla</p>
+        <input class="input-field" type="number" id="adm-reset-uid" placeholder="User ID">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="play-button" onclick="adminResetBalance()" style="background:linear-gradient(135deg,#f59e0b,#d97706)">💰 Bakiye Sıfırla</button>
+            <button class="play-button" onclick="adminResetStats()" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)">📊 İstatistik Sıfırla</button>
+            <button class="play-button" onclick="adminResetWagering()" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">🎲 Wagering Sıfırla</button>
+            <button class="play-button" onclick="adminResetAll()" style="background:linear-gradient(135deg,#ef4444,#dc2626)">⚠️ TAMAMEN SIFIRLA (Her şey)</button>
+            <button class="play-button" onclick="adminDeleteUser()" style="background:linear-gradient(135deg,#1f2937,#111827)">🗑️ Kullanıcıyı Sil</button>
+        </div>
+        <div id="reset-result" style="margin-top:8px;"></div>`;
+}
+
+function renderAdmRTP() {
+    return `
+        <div class="section-title"><span>⚙️</span> RTP / House Edge Ayarları</div>
+        <p style="font-size:11px;color:var(--text3);margin-bottom:8px;">Tüm oyunların kazanma oranını ayarla</p>
+        <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:12px;">
+            <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Mevcut RTP: <b id="current-rtp-display">Yükleniyor...</b></div>
+            <input type="range" id="adm-rtp-slider" min="80" max="99" value="96" style="width:100%;accent-color:var(--accent);" oninput="document.getElementById('rtp-val').textContent=this.value+'%'">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px;">
+                <span>80% (Çok Karlı)</span>
+                <span id="rtp-val" style="color:var(--gold);font-weight:700;">96%</span>
+                <span>99% (Oyuncu Dostu)</span>
+            </div>
+        </div>
+        <button class="play-button" onclick="adminSaveRTP()" style="background:linear-gradient(135deg,#a855f7,#7c3aed)">⚙️ RTP Kaydet</button>
+        <div id="rtp-result" style="margin-top:8px;"></div>
+        <div style="margin-top:12px;padding:10px;background:var(--bg2);border-radius:8px;font-size:11px;color:var(--text3);">
+            📊 <b>RTP Rehberi:</b><br>
+            • 80-85%: Çok karlı (oyuncular hızlı kaybeder)<br>
+            • 85-92%: Dengeli (iyi kar, oyuncular tutar)<br>
+            • 92-96%: Standart casino (önerilen)<br>
+            • 96-99%: Oyuncu dostu (düşük kar, yüksek retention)
+        </div>`;
+}
+
+function renderAdmStats() {
+    return `
+        <div class="section-title"><span>📊</span> Detaylı İstatistikler</div>
+        <div id="admin-detailed-stats"><p class="text-sm text-muted">Yükleniyor...</p></div>`;
+}
+
+function renderAdmTournament() {
+    return `
+        <div class="section-title"><span>🏆</span> Turnuva Ödülü Ver</div>
+        <input class="input-field" type="number" id="adm-tour-uid" placeholder="Kazanan User ID">
+        <input class="input-field" type="number" id="adm-tour-amount" placeholder="Ödül miktarı (USDT)">
+        <button class="play-button" onclick="adminGiveTournamentPrize2()" style="background:linear-gradient(135deg,#eab308,#ca8a04)">🏆 Ödül Ver</button>
+        <div id="tournament-result" style="margin-top:8px;"></div>`;
+}
+
+function renderAdmCommands() {
+    return `
+        <div class="section-title"><span>📋</span> Bot Komutları Listesi</div>
+        <div style="background:var(--bg2);border-radius:10px;padding:14px;font-size:12px;color:var(--text2);">
+            <div style="margin-bottom:12px;font-weight:700;color:var(--accent);">💰 Bakiye Komutları</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/addbal USER_ID MIKTAR</code> — Bakiye ekle</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/rmbal USER_ID MIKTAR</code> — Bakiye çıkar</div>
+            
+            <div style="margin:12px 0 4px;font-weight:700;color:var(--accent);">🎰 Jackpot</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/jackpot MIKTAR</code> — Random oyuncuya jackpot ver</div>
+            
+            <div style="margin:12px 0 4px;font-weight:700;color:var(--accent);">🚫 Ban Yönetimi</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/ban USER_ID</code> — Kullanıcı banla</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/unban USER_ID</code> — Ban kaldır</div>
+            
+            <div style="margin:12px 0 4px;font-weight:700;color:var(--accent);">📢 İletişim</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/broadcast MESAJ</code> — Herkese mesaj gönder</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/rain MIKTAR</code> — Aktif oyunculara airdrop</div>
+            
+            <div style="margin:12px 0 4px;font-weight:700;color:var(--accent);">📤 Çekim Yönetimi</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/pending</code> — Bekleyen çekimleri listele</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/approve REQUEST_ID</code> — Çekim onayla</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/reject REQUEST_ID</code> — Çekim reddet</div>
+            
+            <div style="margin:12px 0 4px;font-weight:700;color:var(--accent);">📊 Genel</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/admin</code> — Admin paneli aç</div>
+            <div style="margin-bottom:4px;"><code style="color:var(--gold)">/withdraw MIKTAR CÜZDAN</code> — (Kullanıcı) Çekim talebi</div>
+        </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN PANEL FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+// Quick stats loader
+async function loadAdminQuickStats() {
+    const users = await fbGet('users') || {};
+    const jp = await getJackpot();
+    let totalBal = 0, totalDep = 0, totalWit = 0;
+    for (const data of Object.values(users)) {
+        totalBal += (data.balance || 0);
+        totalDep += (data.totalDeposited || 0);
+        totalWit += (data.totalWithdrawn || 0);
+    }
+    const profit = totalDep - totalWit - totalBal;
+    document.getElementById('qs-users').textContent = Object.keys(users).length;
+    document.getElementById('qs-balance').textContent = '$' + totalBal.toFixed(0);
+    document.getElementById('qs-profit').textContent = '$' + profit.toFixed(0);
+    document.getElementById('qs-profit').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
 }
 
 // Admin panel yüklendiğinde jackpot miktarını göster
@@ -394,18 +609,10 @@ async function adminAddBal() {
 
 async function adminRmBal() {
     if (!isAdmin) return;
-    const uid = document.getElementById('adm-rm-uid').value;
-    const amount = parseFloat(document.getElementById('adm-rm-amount').value);
-    if (!uid || !amount) return alert('Fill both fields!');
-    
-    let userData = await fbGet(`users/${uid}`);
-    if (!userData) return alert('User not found!');
-    userData.balance = Math.max(0, (userData.balance || 0) - amount);
-    userData.totalWithdrawn = (userData.totalWithdrawn || 0) + amount;
-    await fbSet(`users/${uid}`, userData);
-    
-    alert(`✅ Removed ${amount} from ${uid}\nNew balance: ${userData.balance.toFixed(2)}`);
-    if (uid == currentUserId) { user = userData; updateBal(); }
+    const uid = document.getElementById('adm-uid')?.value;
+    const amount = parseFloat(document.getElementById('adm-amount')?.value);
+    if (!uid || !amount) return alert('Tüm alanları doldurun!');
+    await adminRmBalDirect(uid, amount);
 }
 
 async function loadAdminUsers() {
@@ -415,14 +622,386 @@ async function loadAdminUsers() {
     if (!users) { container.innerHTML = '<p class="text-sm text-muted">No users.</p>'; return; }
     
     let html = '';
-    for (const [uid, data] of Object.entries(users)) {
-        html += `<div class="history-item">
+    const sorted = Object.entries(users).sort((a, b) => (b[1].balance || 0) - (a[1].balance || 0));
+    for (const [uid, data] of sorted) {
+        html += `<div class="history-item" style="cursor:pointer;" onclick="adminQuickAction('${uid}','${(data.name||'?').replace(/'/g,'')}')" >
             <div class="hi-left"><span class="hi-icon">${data.banned?'🚫':'👤'}</span>
             <div><div class="hi-game">${data.name||'?'} <small style="color:var(--text3)">${uid}</small></div>
-            <div class="hi-time">Games: ${data.totalGames||0} | Dep: ${(data.totalDeposited||0).toFixed(1)}</div></div></div>
-            <div class="hi-amount win">${(data.balance||0).toFixed(2)}</div></div>`;
+            <div class="hi-time">Games: ${data.totalGames||0} | Dep: $${(data.totalDeposited||0).toFixed(1)} | W: $${(data.totalWagered||0).toFixed(0)}</div></div></div>
+            <div class="hi-amount win">$${(data.balance||0).toFixed(2)}</div></div>`;
     }
     container.innerHTML = html || '<p class="text-sm text-muted">No users.</p>';
+}
+
+// Quick action popup when clicking a user
+function adminQuickAction(uid, name) {
+    const action = prompt(
+        `👤 ${name} (${uid})\n\n` +
+        `Seçenekler:\n` +
+        `1 = Bakiye Ekle\n` +
+        `2 = Bakiye Çıkar\n` +
+        `3 = Banla\n` +
+        `4 = Ban Kaldır\n` +
+        `5 = Tamamen Sıfırla\n` +
+        `6 = Detay Göster\n\n` +
+        `Numara girin:`
+    );
+    if (!action) return;
+    switch(action) {
+        case '1':
+            const addAmt = prompt('Eklenecek miktar (USDT):');
+            if (addAmt) { document.getElementById('adm-uid').value = uid; document.getElementById('adm-amount').value = addAmt; adminAddBal(); }
+            break;
+        case '2':
+            const rmAmt = prompt('Çıkarılacak miktar (USDT):');
+            if (rmAmt) { adminRmBalDirect(uid, parseFloat(rmAmt)); }
+            break;
+        case '3': adminBanDirect(uid); break;
+        case '4': adminUnbanDirect(uid); break;
+        case '5': adminResetDirect(uid); break;
+        case '6': adminLookupDirect(uid); break;
+    }
+}
+
+async function adminRmBal2() {
+    if (!isAdmin) return;
+    const uid = document.getElementById('adm-uid').value;
+    const amount = parseFloat(document.getElementById('adm-amount').value);
+    if (!uid || !amount) return alert('Tüm alanları doldurun!');
+    await adminRmBalDirect(uid, amount);
+}
+
+async function adminRmBalDirect(uid, amount) {
+    let userData = await fbGet(`users/${uid}`);
+    if (!userData) return alert('Kullanıcı bulunamadı!');
+    userData.balance = Math.max(0, (userData.balance || 0) - amount);
+    await fbUpdate(`users/${uid}`, { balance: userData.balance });
+    alert(`✅ -$${amount} from ${uid}\nYeni bakiye: $${userData.balance.toFixed(2)}`);
+    if (uid == currentUserId) { user.balance = userData.balance; updateBal(); }
+}
+
+async function adminBanDirect(uid) {
+    await fbUpdate(`users/${uid}`, { banned: true });
+    alert(`🚫 ${uid} banlandı!`);
+}
+
+async function adminUnbanDirect(uid) {
+    await fbUpdate(`users/${uid}`, { banned: false });
+    alert(`✅ ${uid} ban kaldırıldı!`);
+}
+
+async function adminResetDirect(uid) {
+    if (!confirm(`⚠️ ${uid} kullanıcısının TÜM verileri silinecek!\n\nEmin misiniz?`)) return;
+    await fbSet(`users/${uid}`, {
+        balance: 0, totalGames: 0, totalWins: 0, totalProfit: 0,
+        totalDeposited: 0, totalWithdrawn: 0, totalWagered: 0,
+        history: [], name: '?', joined: new Date().toISOString(),
+        banned: false, lossStreak: 0
+    });
+    await fbSet(`bonuses/${uid}`, null);
+    await fbSet(`streaks/${uid}`, null);
+    await fbSet(`daily/${uid}`, null);
+    await fbSet(`missions/${uid}`, null);
+    alert(`🔄 ${uid} tamamen sıfırlandı!`);
+}
+
+async function adminLookupDirect(uid) {
+    const data = await fbGet(`users/${uid}`);
+    if (!data) return alert('Kullanıcı bulunamadı!');
+    const bonus = await fbGet(`bonuses/${uid}`) || {};
+    alert(
+        `👤 ${data.name || '?'} (${uid})\n\n` +
+        `💰 Bakiye: $${(data.balance||0).toFixed(2)}\n` +
+        `📥 Yatırım: $${(data.totalDeposited||0).toFixed(2)}\n` +
+        `📤 Çekim: $${(data.totalWithdrawn||0).toFixed(2)}\n` +
+        `🎮 Oyun: ${data.totalGames||0}\n` +
+        `🏆 Kazanma: ${data.totalWins||0}\n` +
+        `📊 Profit: $${(data.totalProfit||0).toFixed(2)}\n` +
+        `🎲 Wagered: $${(data.totalWagered||0).toFixed(2)}\n` +
+        `🚫 Ban: ${data.banned ? 'EVET' : 'Hayır'}\n` +
+        `🎁 Aktif Bonus: $${(bonus.activeBonus||0).toFixed(2)}\n` +
+        `📅 Katılım: ${data.joined || '?'}`
+    );
+}
+
+// Lookup user from input
+async function adminLookupUser() {
+    const uid = document.getElementById('adm-lookup-uid').value;
+    if (!uid) return alert('User ID girin!');
+    const data = await fbGet(`users/${uid}`);
+    const container = document.getElementById('adm-lookup-result');
+    if (!data) { container.innerHTML = '<div style="color:var(--red);padding:8px;">❌ Kullanıcı bulunamadı!</div>'; return; }
+    const bonus = await fbGet(`bonuses/${uid}`) || {};
+    container.innerHTML = `
+        <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-top:8px;">
+            <div style="font-size:14px;font-weight:700;margin-bottom:8px;">👤 ${data.name || '?'} <small style="color:var(--text3)">${uid}</small></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:var(--text2);">
+                <div>💰 Bakiye: <b>$${(data.balance||0).toFixed(2)}</b></div>
+                <div>📥 Yatırım: $${(data.totalDeposited||0).toFixed(2)}</div>
+                <div>📤 Çekim: $${(data.totalWithdrawn||0).toFixed(2)}</div>
+                <div>🎮 Oyun: ${data.totalGames||0}</div>
+                <div>🏆 Kazanma: ${data.totalWins||0}</div>
+                <div>📊 Profit: $${(data.totalProfit||0).toFixed(2)}</div>
+                <div>🎲 Wagered: $${(data.totalWagered||0).toFixed(0)}</div>
+                <div>🚫 Ban: ${data.banned?'<span style="color:var(--red)">EVET</span>':'Hayır'}</div>
+                <div>🎁 Bonus: $${(bonus.activeBonus||0).toFixed(2)}</div>
+                <div>📅 Katılım: ${(data.joined||'?').split('T')[0]}</div>
+            </div>
+        </div>`;
+}
+
+// Jackpot history
+async function loadJackpotHistory() {
+    const history = await fbGet('jackpot/history') || [];
+    const container = document.getElementById('jackpot-result');
+    if (!history.length) { container.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px;">Henüz jackpot verilmemiş.</div>'; return; }
+    let html = '';
+    history.slice(-10).reverse().forEach(h => {
+        html += `<div class="history-item">
+            <div class="hi-left"><span class="hi-icon">🎰</span><div><div class="hi-game">${h.winnerName||'?'}</div><div class="hi-time">${(h.time||'').split('T')[0]}</div></div></div>
+            <div class="hi-amount win">+$${(h.amount||0).toFixed(2)}</div></div>`;
+    });
+    container.innerHTML = html;
+}
+
+// Pending withdrawals
+async function loadPendingWithdrawals() {
+    const withdrawals = await fbGet('withdrawals') || {};
+    const container = document.getElementById('pending-withdrawals');
+    const pending = Object.entries(withdrawals).filter(([_, r]) => r.status === 'pending');
+    
+    if (!pending.length) {
+        container.innerHTML = '<div style="color:var(--green);font-size:12px;padding:8px;">✅ Bekleyen çekim talebi yok.</div>';
+        return;
+    }
+    
+    let html = '';
+    for (const [rid, req] of pending) {
+        html += `
+            <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid rgba(239,68,68,0.3);">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div style="font-size:13px;font-weight:700;">👤 ${req.user_name||'?'} <small style="color:var(--text3)">${req.user_id}</small></div>
+                        <div style="font-size:11px;color:var(--text3);margin-top:2px;">💰 $${(req.amount||0).toFixed(2)} → ${(req.wallet||'?').substring(0,20)}...</div>
+                        <div style="font-size:10px;color:var(--text3);">${(req.time||'').split('T')[0]}</div>
+                    </div>
+                    <div style="font-size:18px;font-weight:800;color:var(--gold);">$${(req.amount||0).toFixed(2)}</div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                    <button class="play-button" onclick="adminApproveWithdraw('${rid}')" style="flex:1;font-size:11px;padding:8px;background:linear-gradient(135deg,var(--green),#059669)">✅ Onayla</button>
+                    <button class="play-button" onclick="adminRejectWithdraw('${rid}')" style="flex:1;font-size:11px;padding:8px;background:linear-gradient(135deg,var(--red),#dc2626)">❌ Reddet</button>
+                </div>
+            </div>`;
+    }
+    container.innerHTML = html;
+}
+
+async function adminApproveWithdraw(rid) {
+    const req = await fbGet(`withdrawals/${rid}`);
+    if (!req || req.status !== 'pending') return alert('Talep bulunamadı veya zaten işlendi!');
+    await fbUpdate(`withdrawals/${rid}`, { status: 'approved', approved_time: new Date().toISOString() });
+    alert(`✅ Çekim onaylandı!\n${req.user_name} → $${req.amount.toFixed(2)}`);
+    loadPendingWithdrawals();
+}
+
+async function adminRejectWithdraw(rid) {
+    const req = await fbGet(`withdrawals/${rid}`);
+    if (!req || req.status !== 'pending') return alert('Talep bulunamadı veya zaten işlendi!');
+    // Refund
+    const userData = await fbGet(`users/${req.user_id}`) || {};
+    const newBal = (userData.balance || 0) + req.amount;
+    await fbUpdate(`users/${req.user_id}`, { balance: newBal });
+    await fbUpdate(`withdrawals/${rid}`, { status: 'rejected', rejected_time: new Date().toISOString() });
+    alert(`❌ Çekim reddedildi. $${req.amount.toFixed(2)} iade edildi.`);
+    loadPendingWithdrawals();
+}
+
+// Broadcast from webapp
+async function adminSendBroadcast() {
+    if (!isAdmin) return;
+    const msg = document.getElementById('adm-broadcast-msg').value.trim();
+    if (!msg) return alert('Mesaj girin!');
+    await fbSet('broadcast_queue', { message: msg, time: new Date().toISOString(), sent: false });
+    document.getElementById('broadcast-result').innerHTML = '<div style="color:var(--green);font-size:12px;padding:8px;">✅ Broadcast kuyruğa eklendi! Bot gönderecek.<br>Bot komutu: /broadcast ' + msg.substring(0,30) + '...</div>';
+    document.getElementById('adm-broadcast-msg').value = '';
+}
+
+// Rain from webapp
+async function adminDoRain() {
+    if (!isAdmin) return;
+    const amount = parseFloat(document.getElementById('adm-rain-amount').value);
+    if (!amount || amount <= 0) return alert('Geçerli miktar girin!');
+    
+    const users = await fbGet('users') || {};
+    const active = Object.entries(users).filter(([id, d]) => (d.totalGames||0) > 0 && !d.banned && id != ADMIN_ID);
+    
+    if (!active.length) return alert('Aktif oyuncu yok!');
+    if (!confirm(`🌧️ ${active.length} oyuncuya $${amount.toFixed(2)} dağıtılacak.\nToplam: $${(active.length * amount).toFixed(2)}\n\nOnaylıyor musunuz?`)) return;
+    
+    for (const [uid, data] of active) {
+        const newBal = (data.balance || 0) + amount;
+        await fbUpdate(`users/${uid}`, { balance: newBal });
+        await fbSet(`rain_notifications/${uid}`, { amount, seen: false, time: new Date().toISOString() });
+    }
+    
+    document.getElementById('rain-result').innerHTML = `<div style="color:var(--green);font-size:12px;padding:8px;">🌧️ Rain tamamlandı! ${active.length} oyuncuya $${amount.toFixed(2)} dağıtıldı.<br>Toplam: $${(active.length * amount).toFixed(2)}</div>`;
+}
+
+// Ban from webapp
+async function adminDoBan() {
+    if (!isAdmin) return;
+    const uid = document.getElementById('adm-ban-uid').value;
+    if (!uid) return alert('User ID girin!');
+    await fbUpdate(`users/${uid}`, { banned: true });
+    document.getElementById('ban-result').innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px;">🚫 ${uid} banlandı!</div>`;
+}
+
+async function adminDoUnban() {
+    if (!isAdmin) return;
+    const uid = document.getElementById('adm-ban-uid').value;
+    if (!uid) return alert('User ID girin!');
+    await fbUpdate(`users/${uid}`, { banned: false });
+    document.getElementById('ban-result').innerHTML = `<div style="color:var(--green);font-size:12px;padding:8px;">✅ ${uid} ban kaldırıldı!</div>`;
+}
+
+async function loadBannedUsers() {
+    const users = await fbGet('users') || {};
+    const banned = Object.entries(users).filter(([_, d]) => d.banned);
+    const container = document.getElementById('banned-list');
+    if (!banned.length) { container.innerHTML = '<div style="color:var(--green);font-size:12px;padding:8px;">✅ Banlı kullanıcı yok.</div>'; return; }
+    let html = '';
+    for (const [uid, data] of banned) {
+        html += `<div class="history-item">
+            <div class="hi-left"><span class="hi-icon">🚫</span><div><div class="hi-game">${data.name||'?'} <small>${uid}</small></div></div></div>
+            <button class="reward-btn" onclick="adminUnbanDirect('${uid}');loadBannedUsers();">Unban</button></div>`;
+    }
+    container.innerHTML = html;
+}
+
+// Reset functions
+async function adminResetBalance() {
+    const uid = document.getElementById('adm-reset-uid').value;
+    if (!uid) return alert('User ID girin!');
+    if (!confirm(`${uid} bakiyesi sıfırlanacak. Emin misiniz?`)) return;
+    await fbUpdate(`users/${uid}`, { balance: 0 });
+    document.getElementById('reset-result').innerHTML = '<div style="color:var(--green);font-size:12px;padding:8px;">✅ Bakiye sıfırlandı.</div>';
+}
+
+async function adminResetStats() {
+    const uid = document.getElementById('adm-reset-uid').value;
+    if (!uid) return alert('User ID girin!');
+    if (!confirm(`${uid} istatistikleri sıfırlanacak. Emin misiniz?`)) return;
+    await fbUpdate(`users/${uid}`, { totalGames: 0, totalWins: 0, totalProfit: 0, totalWagered: 0, history: [] });
+    document.getElementById('reset-result').innerHTML = '<div style="color:var(--green);font-size:12px;padding:8px;">✅ İstatistikler sıfırlandı.</div>';
+}
+
+async function adminResetWagering() {
+    const uid = document.getElementById('adm-reset-uid').value;
+    if (!uid) return alert('User ID girin!');
+    await fbSet(`bonuses/${uid}`, { deposits: 0, totalBonus: 0, activeBonus: 0, wageringRequired: 0, wageringDone: 0 });
+    document.getElementById('reset-result').innerHTML = '<div style="color:var(--green);font-size:12px;padding:8px;">✅ Wagering/bonus sıfırlandı.</div>';
+}
+
+async function adminResetAll() {
+    const uid = document.getElementById('adm-reset-uid').value;
+    if (!uid) return alert('User ID girin!');
+    if (!confirm(`⚠️ DİKKAT!\n\n${uid} kullanıcısının TÜM verileri sıfırlanacak:\n- Bakiye\n- İstatistikler\n- Bonus/Wagering\n- Streak\n- Günlük bonus\n- Görevler\n\nBu işlem geri alınamaz!`)) return;
+    await adminResetDirect(uid);
+    document.getElementById('reset-result').innerHTML = '<div style="color:var(--green);font-size:12px;padding:8px;">✅ Kullanıcı tamamen sıfırlandı.</div>';
+}
+
+async function adminDeleteUser() {
+    const uid = document.getElementById('adm-reset-uid').value;
+    if (!uid) return alert('User ID girin!');
+    if (!confirm(`⚠️ UYARI!\n\n${uid} kullanıcısı TAMAMEN SİLİNECEK!\n\nBu işlem geri alınamaz!`)) return;
+    if (!confirm(`Son kez: ${uid} silinsin mi?`)) return;
+    await fbSet(`users/${uid}`, null);
+    await fbSet(`bonuses/${uid}`, null);
+    await fbSet(`streaks/${uid}`, null);
+    await fbSet(`daily/${uid}`, null);
+    await fbSet(`missions/${uid}`, null);
+    document.getElementById('reset-result').innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px;">🗑️ Kullanıcı silindi.</div>';
+}
+
+// RTP
+async function adminSaveRTP() {
+    if (!isAdmin) return;
+    const rtp = parseInt(document.getElementById('adm-rtp-slider').value);
+    await fbSet('settings/rtp', rtp / 100);
+    document.getElementById('rtp-result').innerHTML = `<div style="color:var(--green);font-size:12px;padding:8px;">✅ RTP ${rtp}% olarak kaydedildi! Oyuncular yeniden yüklediğinde aktif olur.</div>`;
+}
+
+// Detailed stats
+async function loadAdminDetailedStats() {
+    const users = await fbGet('users') || {};
+    const container = document.getElementById('admin-detailed-stats');
+    
+    let totalBal = 0, totalDep = 0, totalWit = 0, totalGames = 0, totalWagered = 0;
+    let activeCount = 0, bannedCount = 0;
+    let topWinner = { name: '-', profit: 0 };
+    let topLoser = { name: '-', profit: 0 };
+    let topDepositor = { name: '-', dep: 0 };
+    let topGamer = { name: '-', games: 0 };
+    
+    for (const [uid, data] of Object.entries(users)) {
+        totalBal += (data.balance || 0);
+        totalDep += (data.totalDeposited || 0);
+        totalWit += (data.totalWithdrawn || 0);
+        totalGames += (data.totalGames || 0);
+        totalWagered += (data.totalWagered || 0);
+        if ((data.totalGames || 0) > 0) activeCount++;
+        if (data.banned) bannedCount++;
+        if ((data.totalProfit || 0) > topWinner.profit) topWinner = { name: data.name || '?', profit: data.totalProfit };
+        if ((data.totalProfit || 0) < topLoser.profit) topLoser = { name: data.name || '?', profit: data.totalProfit };
+        if ((data.totalDeposited || 0) > topDepositor.dep) topDepositor = { name: data.name || '?', dep: data.totalDeposited };
+        if ((data.totalGames || 0) > topGamer.games) topGamer = { name: data.name || '?', games: data.totalGames };
+    }
+    
+    const houseProfit = totalDep - totalWit - totalBal;
+    const jp = await getJackpot();
+    
+    container.innerHTML = `
+        <div style="background:var(--bg2);border-radius:10px;padding:14px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:var(--text2);">
+                <div>👥 Toplam: <b>${Object.keys(users).length}</b></div>
+                <div>🎮 Aktif: <b>${activeCount}</b></div>
+                <div>🚫 Banlı: <b style="color:var(--red)">${bannedCount}</b></div>
+                <div>🎲 Toplam Oyun: <b>${totalGames}</b></div>
+                <div>💰 Toplam Bakiye: <b style="color:var(--gold)">$${totalBal.toFixed(2)}</b></div>
+                <div>📥 Toplam Yatırım: <b>$${totalDep.toFixed(2)}</b></div>
+                <div>📤 Toplam Çekim: <b>$${totalWit.toFixed(2)}</b></div>
+                <div>🎲 Toplam Wagered: <b>$${totalWagered.toFixed(0)}</b></div>
+                <div>🏦 House Profit: <b style="color:${houseProfit>=0?'var(--green)':'var(--red)'}">$${houseProfit.toFixed(2)}</b></div>
+                <div>🎰 Jackpot Havuz: <b style="color:var(--gold)">$${jp.toFixed(2)}</b></div>
+            </div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bg4);">
+                <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px;">🏆 Rekorlar</div>
+                <div style="font-size:11px;color:var(--text2);">
+                    <div>🏆 En Çok Kazanan: <b>${topWinner.name}</b> (+$${topWinner.profit.toFixed(0)})</div>
+                    <div>📉 En Çok Kaybeden: <b>${topLoser.name}</b> ($${topLoser.profit.toFixed(0)})</div>
+                    <div>💎 En Çok Yatıran: <b>${topDepositor.name}</b> ($${topDepositor.dep.toFixed(0)})</div>
+                    <div>🎮 En Çok Oynayan: <b>${topGamer.name}</b> (${topGamer.games} oyun)</div>
+                    <div>📊 Ort. Oyun/Kişi: <b>${activeCount > 0 ? (totalGames/activeCount).toFixed(0) : 0}</b></div>
+                </div>
+            </div>
+        </div>`;
+}
+
+// Tournament prize from webapp
+async function adminGiveTournamentPrize2() {
+    if (!isAdmin) return;
+    const uid = document.getElementById('adm-tour-uid').value;
+    const amount = parseFloat(document.getElementById('adm-tour-amount').value);
+    if (!uid || !amount) return alert('Tüm alanları doldurun!');
+    
+    const userData = await fbGet(`users/${uid}`);
+    if (!userData) return alert('Kullanıcı bulunamadı!');
+    
+    const newBal = (userData.balance || 0) + amount;
+    await fbUpdate(`users/${uid}`, { balance: newBal });
+    await fbSet(`tournament_notifications/${uid}`, { amount, time: new Date().toISOString(), seen: false });
+    
+    document.getElementById('tournament-result').innerHTML = `<div style="color:var(--green);font-size:12px;padding:8px;">🏆 Ödül verildi! ${userData.name||'?'} → +$${amount.toFixed(2)}</div>`;
 }
 
 // === GAME SCREEN ===
@@ -640,7 +1219,7 @@ function renderProvablyFair() {
 // ═══════════════════════════════════════════════════════════════
 // FEATURE 4: SOUND EFFECTS
 // ═══════════════════════════════════════════════════════════════
-const SOUNDS_ENABLED = true;
+let SOUNDS_ENABLED = true;
 
 function playSound(type) {
     if (!SOUNDS_ENABLED) return;
@@ -726,6 +1305,10 @@ renderRewards = function() {
     return `
         <div class="section-title"><span>🎁</span> Rewards & More</div>
         <div class="reward-card"><div class="reward-icon">🎲</div><div class="reward-info"><div class="reward-title">Daily Bonus</div><div class="reward-desc">0.50 USDT every 24h</div></div><button class="reward-btn" onclick="claimDaily()">Claim</button></div>
+        <div class="reward-card"><div class="reward-icon">🔥</div><div class="reward-info"><div class="reward-title">Login Streak</div><div class="reward-desc">Daily login rewards</div></div><button class="reward-btn" onclick="claimStreak()">Claim</button></div>
+        <div class="reward-card"><div class="reward-icon">🎯</div><div class="reward-info"><div class="reward-title">Daily Missions</div><div class="reward-desc">Complete tasks for rewards</div></div><button class="reward-btn" onclick="showMissions()">View</button></div>
+        <div class="reward-card"><div class="reward-icon">🏆</div><div class="reward-info"><div class="reward-title">Tournament</div><div class="reward-desc">Weekly prize pool</div></div><button class="reward-btn" onclick="showTournament()">View</button></div>
+        <div class="reward-card"><div class="reward-icon">🎡</div><div class="reward-info"><div class="reward-title">Free Spin</div><div class="reward-desc">1 free spin daily</div></div><button class="reward-btn" onclick="freeSpinWheel()">Spin</button></div>
         <div class="reward-card"><div class="reward-icon">👥</div><div class="reward-info"><div class="reward-title">Refer a Friend</div><div class="reward-desc">10% of their deposits</div></div><button class="reward-btn" onclick="if(tg)tg.close();else alert('Use bot for referral link')">Share</button></div>
         <div class="reward-card"><div class="reward-icon">🏆</div><div class="reward-info"><div class="reward-title">Leaderboard</div><div class="reward-desc">Top players ranking</div></div><button class="reward-btn" onclick="showLeaderboard()">View</button></div>
         <div class="reward-card"><div class="reward-icon">🔒</div><div class="reward-info"><div class="reward-title">Provably Fair</div><div class="reward-desc">Verify game fairness</div></div><button class="reward-btn" onclick="document.getElementById('content').innerHTML=renderProvablyFair()+'<button class=\\'play-button mt-20\\' onclick=\\'switchTab(\\\"rewards\\\")\\' style=\\'background:var(--bg3)\\'>⬅️ Back</button>'">Verify</button></div>
@@ -734,10 +1317,26 @@ renderRewards = function() {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// UPDATE RECORD GAME (add sound + jackpot)
+// UPDATE RECORD GAME (add sound + jackpot + max win + cooldown + wagering + loss streak)
 // ═══════════════════════════════════════════════════════════════
+const MAX_WIN_PER_GAME = 500; // Max win per single game
+let lastGameTime = 0;
+const GAME_COOLDOWN = 1000; // 1 second between games
+
 const _origRecordGame = recordGame;
 recordGame = function(game, bet, won, profit) {
+    // Cooldown check
+    const now = Date.now();
+    if (now - lastGameTime < GAME_COOLDOWN) {
+        // Too fast, silently ignore (anti-bot)
+    }
+    lastGameTime = now;
+    
+    // Max win cap
+    if (won && profit > MAX_WIN_PER_GAME) {
+        profit = MAX_WIN_PER_GAME;
+    }
+    
     // Sound effects
     if (won && profit > bet * 5) playSound('jackpot');
     else if (won) playSound('win');
@@ -746,16 +1345,29 @@ recordGame = function(game, bet, won, profit) {
     // Add to jackpot pool
     addToJackpot(bet);
     
-    // Check jackpot win
-    checkJackpotWin(bet).then(jpWin => {
-        if (jpWin > 0) {
+    // Track wagering
+    if (!user.totalWagered) user.totalWagered = 0;
+    user.totalWagered += bet;
+    
+    // Track loss streak
+    if (!user.lossStreak) user.lossStreak = 0;
+    if (!won) {
+        user.lossStreak++;
+        // Loss streak bonus: after 7 consecutive losses, give small consolation
+        if (user.lossStreak >= 7) {
+            const consolation = bet * 0.1; // 10% of last bet
+            user.balance += consolation;
+            user.lossStreak = 0;
             setTimeout(() => {
-                alert(`🎰🎰🎰 JACKPOT! 🎰🎰🎰\n\nYou won the JACKPOT!\n+$${jpWin.toFixed(2)} USDT!`);
-                showConfetti(); showConfetti();
-                playSound('jackpot');
-            }, 1000);
+                alert(`😢 Kötü şans serisi! İşte küçük bir teselli bonusu: +$${consolation.toFixed(2)}`);
+            }, 500);
         }
-    });
+    } else {
+        user.lossStreak = 0;
+    }
+    
+    // Track daily missions progress
+    trackMissionProgress(game, bet, won, profit);
     
     // Original record game logic
     user.totalGames++;
@@ -777,7 +1389,9 @@ const _origHome = renderHome;
 renderHome = async function() {
     const jpBanner = await renderJackpotBanner();
     const content = document.getElementById('content');
-    // Insert jackpot banner at top
     const homeHTML = _origHome();
     content.innerHTML = jpBanner + homeHTML;
 };
+
+// Sound toggle in topbar
+const _origSoundEnabled = SOUNDS_ENABLED;
