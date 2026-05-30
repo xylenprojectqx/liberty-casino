@@ -235,7 +235,7 @@ function renderProfile() {
         // Admin paneli render et ve verileri yükle
         setTimeout(() => {
             loadAdminQuickStats();
-            loadJackpotAdmin();
+            showAdminSection('balance'); // Varsayılan olarak bakiye bölümünü göster
         }, 100);
         return renderAdminPanel();
     }
@@ -286,7 +286,7 @@ function renderAdminPanel() {
 function showAdminSection(section) {
     const container = document.getElementById('admin-section-content');
     switch(section) {
-        case 'jackpot': container.innerHTML = renderAdmJackpot(); break;
+        case 'jackpot': container.innerHTML = renderAdmJackpot(); setTimeout(()=>loadJackpotAdmin(),50); break;
         case 'balance': container.innerHTML = renderAdmBalance(); break;
         case 'users': container.innerHTML = renderAdmUsers(); loadAdminUsers(); break;
         case 'withdraw': container.innerHTML = renderAdmWithdraw(); loadPendingWithdrawals(); break;
@@ -593,17 +593,28 @@ async function adminGiveJackpotNew() {
 
 async function adminAddBal() {
     if (!isAdmin) return;
-    const uid = document.getElementById('adm-uid').value;
-    const amount = parseFloat(document.getElementById('adm-amount').value);
-    if (!uid || !amount) return alert('Fill both fields!');
+    const uid = document.getElementById('adm-uid')?.value;
+    const amount = parseFloat(document.getElementById('adm-amount')?.value);
+    if (!uid || !amount || amount <= 0) return alert('User ID ve miktar girin!');
     
     let userData = await fbGet(`users/${uid}`);
-    if (!userData) { userData = { balance: 0, totalGames: 0, totalWins: 0, totalProfit: 0, totalDeposited: 0, totalWithdrawn: 0, history: [], name: '?', joined: new Date().toISOString(), banned: false }; }
+    if (!userData) { 
+        userData = { balance: 0, totalGames: 0, totalWins: 0, totalProfit: 0, totalDeposited: 0, totalWithdrawn: 0, totalWagered: 0, history: [], name: '?', joined: new Date().toISOString(), banned: false }; 
+    }
     userData.balance = (userData.balance || 0) + amount;
     userData.totalDeposited = (userData.totalDeposited || 0) + amount;
     await fbSet(`users/${uid}`, userData);
     
-    alert(`✅ Added ${amount} USDT to ${uid}\nNew balance: ${userData.balance.toFixed(2)}`);
+    // Kullanıcıya bildirim gönder (bot tarafından okunacak)
+    await fbSet(`deposit_notifications/${uid}_${Date.now()}`, {
+        user_id: uid,
+        amount: amount,
+        newBalance: userData.balance,
+        time: new Date().toISOString(),
+        notified: false
+    });
+    
+    alert(`✅ +$${amount.toFixed(2)} USDT eklendi!\nKullanıcı: ${userData.name || uid}\nYeni bakiye: $${userData.balance.toFixed(2)}\n\n📨 Bildirim kuyruğa eklendi.`);
     if (uid == currentUserId) { user = userData; updateBal(); }
 }
 
