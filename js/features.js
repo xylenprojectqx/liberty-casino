@@ -476,30 +476,30 @@ const _origWallet = typeof renderWallet !== 'undefined' ? renderWallet : null;
 function renderWalletEnhanced() {
     return `
         <div class="wallet-hero">
-            <div class="wallet-label">Total Balance</div>
+            <div class="wallet-label">${t('totalBalance')}</div>
             <div class="wallet-amount">${user.balance.toFixed(2)} <span class="currency">USDT</span></div>
             <div class="wallet-actions">
-                <button class="wallet-btn dep" onclick="goToBot('deposit')">Deposit</button>
-                <button class="wallet-btn wit" onclick="checkWithdrawEligibility()">Withdraw</button>
+                <button class="wallet-btn dep" onclick="goToBot('deposit')">${t('deposit')}</button>
+                <button class="wallet-btn wit" onclick="checkWithdrawEligibility()">${t('withdraw')}</button>
             </div>
         </div>
         <div id="wagering-info" style="padding:12px;"></div>
         <div style="text-align:center;padding:12px;color:var(--text3);font-size:12px;">
-            <p>💰 Min çekim: $${MIN_WITHDRAW} • Deposits & withdrawals via bot</p>
-            <p style="margin-top:4px;">🎁 İlk yatırıma %100 bonus!</p>
+            <p>💰 ${t('minWithdraw')} • ${t('depositInfo')}</p>
+            <p style="margin-top:4px;">🎁 ${t('firstDepBonus')}</p>
         </div>
         <div style="padding:0 16px;">
             <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:8px;">
-                <div style="font-size:13px;font-weight:700;margin-bottom:8px;">🎁 Deposit Bonusları</div>
+                <div style="font-size:13px;font-weight:700;margin-bottom:8px;">🎁 ${t('depositBonuses')}</div>
                 <div style="font-size:11px;color:var(--text3);">
-                    1. Yatırım: <b style="color:var(--green)">%100 Bonus</b> (max $100)<br>
-                    2. Yatırım: <b style="color:var(--gold)">%50 Bonus</b> (max $50)<br>
-                    3. Yatırım: <b style="color:var(--accent)">%25 Bonus</b> (max $25)<br>
-                    <span style="font-size:10px;">* Bonus 5x wagering gerektirir</span>
+                    1. Deposit: <b style="color:var(--green)">%100 Bonus</b> (max $100)<br>
+                    2. Deposit: <b style="color:var(--gold)">%50 Bonus</b> (max $50)<br>
+                    3. Deposit: <b style="color:var(--accent)">%25 Bonus</b> (max $25)<br>
+                    <span style="font-size:10px;">* Bonus 5x wagering</span>
                 </div>
             </div>
         </div>
-        <button class="play-button mt-20" onclick="goToBot('deposit')" style="background:linear-gradient(135deg,var(--green),#059669);margin:0 16px;">💰 Bot'a Git - Yatır</button>
+        <button class="play-button mt-20" onclick="goToBot('deposit')" style="background:linear-gradient(135deg,var(--green),#059669);margin:0 16px;">💰 ${t('goToDeposit')}</button>
     `;
 }
 

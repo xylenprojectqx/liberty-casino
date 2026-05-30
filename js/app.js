@@ -150,11 +150,11 @@ function switchTab(tab) {
 function renderHome() {
     return `
         <div class="hero-banner">
-            <div class="hero-title">🎰 Welcome to Liberty Casino</div>
-            <div class="hero-sub">Play, Win, Withdraw. Provably Fair.</div>
-            <button class="hero-btn" onclick="switchTab('games')">Play Now →</button>
+            <div class="hero-title">🎰 ${t('welcome')}</div>
+            <div class="hero-sub">${t('playWinWithdraw')}</div>
+            <button class="hero-btn" onclick="switchTab('games')">${t('playNow')}</button>
         </div>
-        <div class="section-title"><span>🔥</span> Popular Games</div>
+        <div class="section-title"><span>🔥</span> ${t('popularGames')}</div>
         <div class="games-row">
             ${gamesList.slice(0,6).map(g => `
                 <div class="game-card" onclick="openGame('${g.id}')">
@@ -163,20 +163,20 @@ function renderHome() {
                     <div class="gc-mult">${g.mult}</div>
                 </div>`).join('')}
         </div>
-        <div class="section-title mt-20"><span>⚡</span> Recent</div>
-        ${!user.history?.length ? '<p class="text-sm text-muted">No games yet.</p>' :
+        <div class="section-title mt-20"><span>⚡</span> ${t('recent')}</div>
+        ${!user.history?.length ? `<p class="text-sm text-muted">${t('noGamesYet')}</p>` :
           user.history.slice(0,5).map(h => `
             <div class="history-item">
                 <div class="hi-left"><span class="hi-icon">${h.won?'✅':'❌'}</span><div><div class="hi-game">${h.game}</div><div class="hi-time">${h.time}</div></div></div>
                 <div class="hi-amount ${h.won?'win':'loss'}">${h.won?'+':''}${h.profit.toFixed(2)}</div>
             </div>`).join('')}
-        ${isAdmin ? '<div class="mt-20"><button class="play-button" onclick="switchTab(\'profile\')" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🔐 Admin Panel</button></div>' : ''}
+        ${isAdmin ? `<div class="mt-20"><button class="play-button" onclick="switchTab('profile')" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🔐 ${t('adminPanel')}</button></div>` : ''}
     `;
 }
 
 // === GAMES ===
 function renderGames() {
-    return `<div class="section-title"><span>🎮</span> All Games</div>
+    return `<div class="section-title"><span>🎮</span> ${t('allGames')}</div>
         <div class="games-grid">${gamesList.map(g => `
             <div class="game-card-grid ${g.coming?'coming':''}" onclick="${g.coming?'':`openGame('${g.id}')`}">
                 <div class="gc-icon">${g.icon}</div><div class="gc-name">${g.name}</div><div class="gc-mult">${g.mult}</div>
@@ -187,17 +187,17 @@ function renderGames() {
 function renderWallet() {
     return `
         <div class="wallet-hero">
-            <div class="wallet-label">Total Balance</div>
+            <div class="wallet-label">${t('totalBalance')}</div>
             <div class="wallet-amount">${user.balance.toFixed(2)} <span class="currency">USDT</span></div>
             <div class="wallet-actions">
-                <button class="wallet-btn dep" onclick="goToBot('deposit')">Deposit</button>
-                <button class="wallet-btn wit" onclick="goToBot('withdraw')">Withdraw</button>
+                <button class="wallet-btn dep" onclick="goToBot('deposit')">${t('deposit')}</button>
+                <button class="wallet-btn wit" onclick="goToBot('withdraw')">${t('withdraw')}</button>
             </div>
         </div>
         <div style="text-align:center;padding:20px;color:var(--text3);font-size:13px;">
-            <p>💰 Deposits & withdrawals are handled via the bot.</p>
+            <p>💰 ${t('depositInfo')}</p>
             <p style="margin-top:8px;">Close this app and use the bot buttons to deposit or withdraw.</p>
-            <button class="play-button mt-20" onclick="goToBot('deposit')" style="background:linear-gradient(135deg,var(--green),#059669)">💰 Go to Bot to Deposit</button>
+            <button class="play-button mt-20" onclick="goToBot('deposit')" style="background:linear-gradient(135deg,var(--green),#059669)">💰 ${t('goToDeposit')}</button>
         </div>`;
 }
 
@@ -221,12 +221,12 @@ function renderRewards() {
 }
 async function claimDaily() {
     const lastClaim = await fbGet(`daily/${currentUserId}`);
-    if (lastClaim && Date.now() - lastClaim < 86400000) { alert('Already claimed! Come back tomorrow.'); return; }
+    if (lastClaim && Date.now() - lastClaim < 86400000) { alert(t('alreadyClaimed')); return; }
     user.balance += 0.50;
     await saveUser();
     await fbSet(`daily/${currentUserId}`, Date.now());
     updateBal();
-    alert('🎉 +0.50 USDT claimed!');
+    alert(t('claimed'));
 }
 
 // === PROFILE / ADMIN ===
@@ -1006,7 +1006,7 @@ async function adminGiveTournamentPrize2() {
 
 // === GAME SCREEN ===
 function openGame(id) {
-    if (user.banned) return alert('Account banned!');
+    if (user.banned) return alert(t('accountBanned'));
     const game = gamesList.find(g => g.id === id);
     if (!game || game.coming) return;
     document.getElementById('game-screen').classList.remove('hidden');
@@ -1022,15 +1022,18 @@ function closeGame() {
 // === LANGUAGE ===
 function showLanguageSelector() {
     document.getElementById('game-screen').classList.remove('hidden');
-    document.getElementById('game-title').textContent = '🌐 Language';
+    document.getElementById('game-title').textContent = '🌐 ' + t('language');
     document.getElementById('game-body').innerHTML = `
         <div style="width:100%;max-width:360px;">
-            <div class="payment-option" onclick="closeGame()"><div>🇬🇧</div><div><div class="po-name">English</div></div></div>
-            <div class="payment-option" onclick="closeGame()"><div>🇹🇷</div><div><div class="po-name">Türkçe</div></div></div>
-            <div class="payment-option" onclick="closeGame()"><div>🇷🇺</div><div><div class="po-name">Русский</div></div></div>
-            <div class="payment-option" onclick="closeGame()"><div>🇸🇦</div><div><div class="po-name">العربية</div></div></div>
-            <div class="payment-option" onclick="closeGame()"><div>🇪🇸</div><div><div class="po-name">Español</div></div></div>
-            <div class="payment-option" onclick="closeGame()"><div>🇨🇳</div><div><div class="po-name">中文</div></div></div>
+            ${Object.entries(LANGS).map(([code, info]) => `
+                <div class="payment-option" onclick="setLanguage('${code}')" style="${currentLang===code?'border-color:var(--accent);background:rgba(139,92,246,0.1);':''}">
+                    <div style="font-size:28px;">${info.flag}</div>
+                    <div>
+                        <div class="po-name">${info.name}</div>
+                        ${currentLang===code?'<div style="font-size:10px;color:var(--accent);">✓ Active</div>':''}
+                    </div>
+                </div>
+            `).join('')}
         </div>`;
 }
 
@@ -1303,15 +1306,15 @@ async function renderJackpotBanner() {
 const _origRewards = renderRewards;
 renderRewards = function() {
     return `
-        <div class="section-title"><span>🎁</span> Rewards & More</div>
-        <div class="reward-card"><div class="reward-icon">🎲</div><div class="reward-info"><div class="reward-title">Daily Bonus</div><div class="reward-desc">0.50 USDT every 24h</div></div><button class="reward-btn" onclick="claimDaily()">Claim</button></div>
-        <div class="reward-card"><div class="reward-icon">🔥</div><div class="reward-info"><div class="reward-title">Login Streak</div><div class="reward-desc">Daily login rewards</div></div><button class="reward-btn" onclick="claimStreak()">Claim</button></div>
-        <div class="reward-card"><div class="reward-icon">🎯</div><div class="reward-info"><div class="reward-title">Daily Missions</div><div class="reward-desc">Complete tasks for rewards</div></div><button class="reward-btn" onclick="showMissions()">View</button></div>
-        <div class="reward-card"><div class="reward-icon">🏆</div><div class="reward-info"><div class="reward-title">Tournament</div><div class="reward-desc">Weekly prize pool</div></div><button class="reward-btn" onclick="showTournament()">View</button></div>
-        <div class="reward-card"><div class="reward-icon">🎡</div><div class="reward-info"><div class="reward-title">Free Spin</div><div class="reward-desc">1 free spin daily</div></div><button class="reward-btn" onclick="freeSpinWheel()">Spin</button></div>
-        <div class="reward-card"><div class="reward-icon">👥</div><div class="reward-info"><div class="reward-title">Refer a Friend</div><div class="reward-desc">10% of their deposits</div></div><button class="reward-btn" onclick="if(tg)tg.close();else alert('Use bot for referral link')">Share</button></div>
-        <div class="reward-card"><div class="reward-icon">🏆</div><div class="reward-info"><div class="reward-title">Leaderboard</div><div class="reward-desc">Top players ranking</div></div><button class="reward-btn" onclick="showLeaderboard()">View</button></div>
-        <div class="reward-card"><div class="reward-icon">🔒</div><div class="reward-info"><div class="reward-title">Provably Fair</div><div class="reward-desc">Verify game fairness</div></div><button class="reward-btn" onclick="document.getElementById('content').innerHTML=renderProvablyFair()+'<button class=\\'play-button mt-20\\' onclick=\\'switchTab(\\\"rewards\\\")\\' style=\\'background:var(--bg3)\\'>⬅️ Back</button>'">Verify</button></div>
+        <div class="section-title"><span>🎁</span> ${t('rewardsMore')}</div>
+        <div class="reward-card"><div class="reward-icon">🎲</div><div class="reward-info"><div class="reward-title">${t('dailyBonus')}</div><div class="reward-desc">${t('dailyBonusDesc')}</div></div><button class="reward-btn" onclick="claimDaily()">${t('claim')}</button></div>
+        <div class="reward-card"><div class="reward-icon">🔥</div><div class="reward-info"><div class="reward-title">${t('loginStreak')}</div><div class="reward-desc">${t('loginStreakDesc')}</div></div><button class="reward-btn" onclick="claimStreak()">${t('claim')}</button></div>
+        <div class="reward-card"><div class="reward-icon">🎯</div><div class="reward-info"><div class="reward-title">${t('dailyMissions')}</div><div class="reward-desc">${t('dailyMissionsDesc')}</div></div><button class="reward-btn" onclick="showMissions()">${t('view')}</button></div>
+        <div class="reward-card"><div class="reward-icon">🏆</div><div class="reward-info"><div class="reward-title">${t('tournament')}</div><div class="reward-desc">${t('tournamentDesc')}</div></div><button class="reward-btn" onclick="showTournament()">${t('view')}</button></div>
+        <div class="reward-card"><div class="reward-icon">🎡</div><div class="reward-info"><div class="reward-title">${t('freeSpin')}</div><div class="reward-desc">${t('freeSpinDesc')}</div></div><button class="reward-btn" onclick="freeSpinWheel()">${t('spin')}</button></div>
+        <div class="reward-card"><div class="reward-icon">👥</div><div class="reward-info"><div class="reward-title">${t('referFriend')}</div><div class="reward-desc">${t('referDesc')}</div></div><button class="reward-btn" onclick="if(tg)tg.close();else alert('Use bot for referral link')">${t('share')}</button></div>
+        <div class="reward-card"><div class="reward-icon">🏆</div><div class="reward-info"><div class="reward-title">${t('leaderboard')}</div><div class="reward-desc">${t('leaderboardDesc')}</div></div><button class="reward-btn" onclick="showLeaderboard()">${t('view')}</button></div>
+        <div class="reward-card"><div class="reward-icon">🔒</div><div class="reward-info"><div class="reward-title">${t('provablyFair')}</div><div class="reward-desc">${t('provablyFairDesc')}</div></div><button class="reward-btn" onclick="document.getElementById('content').innerHTML=renderProvablyFair()+'<button class=\\'play-button mt-20\\' onclick=\\'switchTab(\\\"rewards\\\")\\' style=\\'background:var(--bg3)\\'>${t('back')}</button>'">${t('verify')}</button></div>
         ${renderVIPInfo()}
     `;
 };

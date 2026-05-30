@@ -28,8 +28,8 @@ function showConfetti() {
     }
     setTimeout(() => c.remove(), 4000);
 }
-function showWinResult(amount) { return `<div class="win-banner glow-green"><div class="wb-label">🎉 YOU WIN!</div><div class="wb-amount">+${amount.toFixed(2)} USDT</div></div>`; }
-function showLoseResult(amount) { return `<div class="lose-banner"><div class="wb-label">Better luck next time</div><div class="wb-amount">-${amount.toFixed(2)} USDT</div></div>`; }
+function showWinResult(amount) { return `<div class="win-banner glow-green"><div class="wb-label">${typeof t==='function'?t('youWin'):'🎉 YOU WIN!'}</div><div class="wb-amount">+${amount.toFixed(2)} USDT</div></div>`; }
+function showLoseResult(amount) { return `<div class="lose-banner"><div class="wb-label">${typeof t==='function'?t('betterLuck'):'Better luck next time'}</div><div class="wb-amount">-${amount.toFixed(2)} USDT</div></div>`; }
 
 // === GAMES LIST ===
 const gamesList = [
@@ -88,8 +88,8 @@ function getBet(id) {
     if (!v || v <= 0) { alert('Enter a valid bet!'); return null; }
     if (v < 1) { alert('Minimum bet: $1.00'); return null; }
     if (v > 500) { alert('Maximum bet: $500.00'); return null; }
-    if (v > user.balance) { alert('Insufficient balance!'); return null; }
-    if (user.balance <= 0) { alert('No balance! Please deposit.'); return null; }
+    if (v > user.balance) { alert(typeof t==='function'?t('insufficientBal'):'Insufficient balance!'); return null; }
+    if (user.balance <= 0) { alert(typeof t==='function'?t('noBalance'):'No balance! Please deposit.'); return null; }
     user.balance -= v;
     if (user.balance < 0) user.balance = 0;
     updateBal();
