@@ -168,9 +168,10 @@ function bjStand() {
 function bjDouble() {
     if (bjState.done) return;
     if (user.balance < bjState.bet) return alert('Yetersiz bakiye!');
+    // Deduct extra bet for double
     user.balance -= bjState.bet;
-    bjState.bet *= 2;
     updateBal();
+    bjState.bet *= 2;
     playCardSound();
     bjState.player.push(bjNewCard());
     bjState.done = true;
@@ -213,7 +214,7 @@ function bjFinish() {
         document.getElementById('bj-result').innerHTML = showWinResult(bet * 2);
         showConfetti(); playSound('win');
     } else if (pVal === dVal) {
-        // Push - return bet
+        // Push - return the bet (getBet already deducted it)
         user.balance += bet;
         updateBal(); saveUser();
         document.getElementById('bj-result').innerHTML = `<div style="text-align:center;padding:16px;color:var(--gold);font-size:16px;font-weight:700;">🤝 PUSH — Bet returned</div>`;

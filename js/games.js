@@ -93,7 +93,6 @@ function getBet(id) {
     user.balance -= v;
     if (user.balance < 0) user.balance = 0;
     updateBal();
-    saveUser();
     playSound('bet');
     return v;
 }

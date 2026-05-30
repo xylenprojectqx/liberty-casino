@@ -120,13 +120,12 @@ function recordGame(game, bet, won, profit) {
     user.totalGames++;
     if (won) user.totalWins++;
     user.totalProfit += profit;
-    user.balance += profit;
+    user.balance += (profit + bet); // getBet already deducted bet, so add back bet + profit
     if (user.balance < 0) user.balance = 0;
     if (!user.history) user.history = [];
     user.history.unshift({ game, bet, won, profit, time: new Date().toLocaleTimeString() });
     if (user.history.length > 30) user.history.pop();
     updateBal();
-    // Save to Firebase in background (don't await)
     saveUser();
 }
 
@@ -596,26 +595,7 @@ async function adminAddBal() {
     const uid = document.getElementById('adm-uid')?.value;
     const amount = parseFloat(document.getElementById('adm-amount')?.value);
     if (!uid || !amount || amount <= 0) return alert('User ID ve miktar girin!');
-    
-    let userData = await fbGet(`users/${uid}`);
-    if (!userData) { 
-        userData = { balance: 0, totalGames: 0, totalWins: 0, totalProfit: 0, totalDeposited: 0, totalWithdrawn: 0, totalWagered: 0, history: [], name: '?', joined: new Date().toISOString(), banned: false }; 
-    }
-    userData.balance = (userData.balance || 0) + amount;
-    userData.totalDeposited = (userData.totalDeposited || 0) + amount;
-    await fbSet(`users/${uid}`, userData);
-    
-    // Kullanıcıya bildirim gönder (bot tarafından okunacak)
-    await fbSet(`deposit_notifications/${uid}_${Date.now()}`, {
-        user_id: uid,
-        amount: amount,
-        newBalance: userData.balance,
-        time: new Date().toISOString(),
-        notified: false
-    });
-    
-    alert(`✅ +$${amount.toFixed(2)} USDT eklendi!\nKullanıcı: ${userData.name || uid}\nYeni bakiye: $${userData.balance.toFixed(2)}\n\n📨 Bildirim kuyruğa eklendi.`);
-    if (uid == currentUserId) { user = userData; updateBal(); }
+    await adminAddBalDirect(uid, amount);
 }
 
 async function adminRmBal() {
@@ -660,18 +640,47 @@ function adminQuickAction(uid, name) {
     if (!action) return;
     switch(action) {
         case '1':
-            const addAmt = prompt('Eklenecek miktar (USDT):');
-            if (addAmt) { document.getElementById('adm-uid').value = uid; document.getElementById('adm-amount').value = addAmt; adminAddBal(); }
+            const addAmt = prompt(`${name} (${uid})\n\nEklenecek miktar (USDT):`);
+            if (addAmt && parseFloat(addAmt) > 0) { adminAddBalDirect(uid, parseFloat(addAmt)); }
             break;
         case '2':
-            const rmAmt = prompt('Çıkarılacak miktar (USDT):');
-            if (rmAmt) { adminRmBalDirect(uid, parseFloat(rmAmt)); }
+            const rmAmt = prompt(`${name} (${uid})\n\nÇıkarılacak miktar (USDT):`);
+            if (rmAmt && parseFloat(rmAmt) > 0) { adminRmBalDirect(uid, parseFloat(rmAmt)); }
             break;
         case '3': adminBanDirect(uid); break;
         case '4': adminUnbanDirect(uid); break;
         case '5': adminResetDirect(uid); break;
         case '6': adminLookupDirect(uid); break;
     }
+}
+
+// Direct balance add (doesn't depend on input fields)
+async function adminAddBalDirect(uid, amount) {
+    if (!isAdmin || !uid || !amount || amount <= 0) return;
+    
+    let userData = await fbGet(`users/${uid}`);
+    if (!userData) { 
+        userData = { balance: 0, totalGames: 0, totalWins: 0, totalProfit: 0, totalDeposited: 0, totalWithdrawn: 0, totalWagered: 0, history: [], name: '?', joined: new Date().toISOString(), banned: false }; 
+    }
+    userData.balance = (userData.balance || 0) + amount;
+    userData.totalDeposited = (userData.totalDeposited || 0) + amount;
+    await fbSet(`users/${uid}`, userData);
+    
+    // Kullanıcıya bildirim gönder
+    await fbSet(`deposit_notifications/${uid}_${Date.now()}`, {
+        user_id: uid,
+        amount: amount,
+        newBalance: userData.balance,
+        time: new Date().toISOString(),
+        notified: false
+    });
+    
+    alert(`✅ +$${amount.toFixed(2)} USDT eklendi!\nKullanıcı: ${userData.name || uid}\nYeni bakiye: $${userData.balance.toFixed(2)}\n\n📨 Bildirim gönderilecek.`);
+    if (uid == currentUserId) { user = userData; updateBal(); }
+    
+    // Kullanıcı listesini yenile
+    if (document.getElementById('admin-users')) loadAdminUsers();
+    loadAdminQuickStats();
 }
 
 async function adminRmBal2() {
@@ -687,8 +696,10 @@ async function adminRmBalDirect(uid, amount) {
     if (!userData) return alert('Kullanıcı bulunamadı!');
     userData.balance = Math.max(0, (userData.balance || 0) - amount);
     await fbUpdate(`users/${uid}`, { balance: userData.balance });
-    alert(`✅ -$${amount} from ${uid}\nYeni bakiye: $${userData.balance.toFixed(2)}`);
+    alert(`✅ -$${amount.toFixed(2)} from ${uid}\nYeni bakiye: $${userData.balance.toFixed(2)}`);
     if (uid == currentUserId) { user.balance = userData.balance; updateBal(); }
+    if (document.getElementById('admin-users')) loadAdminUsers();
+    loadAdminQuickStats();
 }
 
 async function adminBanDirect(uid) {
@@ -1383,11 +1394,17 @@ recordGame = function(game, bet, won, profit) {
     // Track daily missions progress
     trackMissionProgress(game, bet, won, profit);
     
-    // Original record game logic
+    // === BALANCE CALCULATION ===
+    // getBet() already deducted the bet from balance
+    // profit from games: win = (bet * mult - bet) = net profit, lose = -bet
+    // Since bet is already deducted:
+    //   - On win: we need to add back bet + net profit = bet + (bet*mult - bet) = bet*mult (total return)
+    //   - On lose: profit = -bet, but bet already deducted, so add 0
+    //   - On partial (plinko 0.5x): profit = bet*0.5 - bet = -0.5*bet, add back bet + profit = 0.5*bet
     user.totalGames++;
     if (won) user.totalWins++;
     user.totalProfit += profit;
-    user.balance += profit;
+    user.balance += (profit + bet); // Add back bet + net profit = total return
     if (user.balance < 0) user.balance = 0;
     if (!user.history) user.history = [];
     user.history.unshift({ game, bet, won, profit, time: new Date().toLocaleTimeString() });
