@@ -231,7 +231,11 @@ async function claimDaily() {
 
 // === PROFILE / ADMIN ===
 function renderProfile() {
-    if (isAdmin) return renderAdminPanel();
+    if (isAdmin) {
+        // Admin paneli render et ve jackpot bilgisini yükle
+        setTimeout(() => loadJackpotAdmin(), 100);
+        return renderAdminPanel();
+    }
     const wr = user.totalGames > 0 ? ((user.totalWins/user.totalGames)*100).toFixed(1) : '0.0';
     return `
         <div class="profile-header"><div class="profile-avatar">🎮</div><div class="profile-name">${user.name}</div><div class="profile-id">ID: ${currentUserId}</div></div>
@@ -245,6 +249,16 @@ function renderProfile() {
 function renderAdminPanel() {
     return `
         <div class="section-title"><span>🔐</span> ADMIN PANEL</div>
+        
+        <div class="section-title mt-20"><span>🎰</span> Jackpot Yönetimi</div>
+        <div id="jackpot-admin-info" style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:12px;padding:14px;margin-bottom:12px;text-align:center;border:1px solid rgba(245,158,11,0.3);">
+            <div style="font-size:11px;color:var(--text3);">JACKPOT HAVUZU</div>
+            <div style="font-size:24px;font-weight:800;color:var(--gold);margin-top:4px;" id="adm-jp-amount">Yükleniyor...</div>
+        </div>
+        <input class="input-field" type="number" id="adm-jp-give" placeholder="Verilecek miktar (USDT)" step="0.01" min="0.01">
+        <button class="play-button" onclick="adminGiveJackpotNew()" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🎰 Jackpot Ver (Random Aktif Oyuncu)</button>
+        <div id="jackpot-result" style="margin-top:8px;"></div>
+
         <div class="section-title mt-20"><span>💰</span> Add Balance</div>
         <input class="input-field" type="number" id="adm-uid" placeholder="User ID">
         <input class="input-field" type="number" id="adm-amount" placeholder="Amount (USDT)">
@@ -254,9 +268,112 @@ function renderAdminPanel() {
         <input class="input-field" type="number" id="adm-rm-amount" placeholder="Amount">
         <button class="play-button" onclick="adminRmBal()" style="background:linear-gradient(135deg,var(--red),#dc2626)">➖ Remove</button>
         <div class="section-title mt-20"><span>👥</span> All Users</div>
-        <button class="play-button" onclick="loadAdminUsers()" style="background:var(--bg3)">� Load Users</button>
+        <button class="play-button" onclick="loadAdminUsers()" style="background:var(--bg3)">📋 Load Users</button>
         <div id="admin-users"></div>
     `;
+}
+
+// Admin panel yüklendiğinde jackpot miktarını göster
+async function loadJackpotAdmin() {
+    const jp = await getJackpot();
+    const el = document.getElementById('adm-jp-amount');
+    if (el) el.textContent = '$' + jp.toFixed(2);
+}
+
+// Yeni jackpot verme fonksiyonu - havuzdan fazla verilemez, son aktif oyunculara random verilir
+async function adminGiveJackpotNew() {
+    if (!isAdmin) return;
+    
+    const jpAmount = await getJackpot();
+    const giveAmount = parseFloat(document.getElementById('adm-jp-give').value);
+    const resultDiv = document.getElementById('jackpot-result');
+    
+    if (!giveAmount || giveAmount <= 0) {
+        resultDiv.innerHTML = '<div style="color:var(--red);font-size:13px;padding:8px;">❌ Geçerli bir miktar girin!</div>';
+        return;
+    }
+    
+    if (giveAmount > jpAmount) {
+        resultDiv.innerHTML = `<div style="color:var(--red);font-size:13px;padding:8px;">❌ Havuzda yeterli bakiye yok! Havuz: $${jpAmount.toFixed(2)}, İstenen: $${giveAmount.toFixed(2)}</div>`;
+        return;
+    }
+    
+    // Tüm kullanıcıları çek
+    const users = await fbGet('users') || {};
+    
+    // Son oynayan aktif oyuncuları filtrele (admin hariç, ban'lı hariç, en az 1 oyun oynamış)
+    const activePlayers = Object.entries(users)
+        .filter(([id, data]) => {
+            return data.totalGames > 0 && 
+                   !data.banned && 
+                   id != ADMIN_ID &&
+                   (data.balance !== undefined);
+        })
+        .map(([id, data]) => {
+            // Son oyun zamanını history'den al
+            let lastPlayedTime = 0;
+            if (data.history && data.history.length > 0) {
+                // History'deki en son kayıt = en son oynayan
+                lastPlayedTime = data.history.length; // Daha çok history = daha aktif
+            }
+            return { id, data, lastPlayedTime, games: data.totalGames || 0 };
+        })
+        .sort((a, b) => b.games - a.games); // En çok oynayandan en aza
+    
+    if (activePlayers.length === 0) {
+        resultDiv.innerHTML = '<div style="color:var(--red);font-size:13px;padding:8px;">❌ Aktif oyuncu bulunamadı!</div>';
+        return;
+    }
+    
+    // Son oynayan en aktif 10 kişiden random birini seç
+    const topPlayers = activePlayers.slice(0, Math.min(10, activePlayers.length));
+    const winner = topPlayers[Math.floor(Math.random() * topPlayers.length)];
+    
+    // Jackpot'u ver
+    const newBalance = (winner.data.balance || 0) + giveAmount;
+    await fbUpdate(`users/${winner.id}`, { 
+        balance: newBalance,
+        lastJackpotWin: new Date().toISOString(),
+        lastJackpotAmount: giveAmount
+    });
+    
+    // Havuzdan düş
+    await fbSet('jackpot/amount', jpAmount - giveAmount);
+    
+    // Jackpot log'u kaydet
+    const jpLog = await fbGet('jackpot/history') || [];
+    jpLog.push({
+        winnerId: winner.id,
+        winnerName: winner.data.name || '?',
+        amount: giveAmount,
+        time: new Date().toISOString(),
+        poolBefore: jpAmount,
+        poolAfter: jpAmount - giveAmount
+    });
+    await fbSet('jackpot/history', jpLog);
+    
+    // Sonucu göster
+    resultDiv.innerHTML = `
+        <div style="background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(217,119,6,0.1));border:1px solid var(--gold);border-radius:10px;padding:12px;margin-top:8px;">
+            <div style="font-size:16px;font-weight:800;color:var(--gold);text-align:center;">🎰 JACKPOT VERİLDİ! 🎰</div>
+            <div style="margin-top:8px;font-size:13px;color:var(--text2);">
+                <div>🏆 Kazanan: <b>${winner.data.name || '?'}</b></div>
+                <div>🆔 ID: <code>${winner.id}</code></div>
+                <div>💰 Miktar: <b style="color:var(--gold)">$${giveAmount.toFixed(2)}</b></div>
+                <div>💳 Yeni Bakiye: $${newBalance.toFixed(2)}</div>
+                <div>🎰 Kalan Havuz: $${(jpAmount - giveAmount).toFixed(2)}</div>
+            </div>
+        </div>`;
+    
+    // Jackpot miktarını güncelle
+    loadJackpotAdmin();
+    
+    // Bildirim gönder (bot tarafında yapılacak, burada Firebase'e yazıyoruz)
+    await fbSet(`jackpot_notifications/${winner.id}`, {
+        amount: giveAmount,
+        time: new Date().toISOString(),
+        notified: false
+    });
 }
 
 async function adminAddBal() {
@@ -340,32 +457,98 @@ function showLanguageSelector() {
 
 
 // ═══════════════════════════════════════════════════════════════
-// FEATURE 1: LEADERBOARD
+// FEATURE 1: LEADERBOARD (with fake players for social proof)
 // ═══════════════════════════════════════════════════════════════
-async function showLeaderboard() {
-    const users = await fbGet('users');
-    if (!users) return;
+const FAKE_PLAYERS = [
+    "Alex_Trader","CryptoKing","LuckyDave","MoonShot","DiamondH","WhaleBet","RiskTaker","BigWin99",
+    "ProGambler","CoinMaster","BetKing","JackpotJoe","HighRoller","LuckyLuke","CashFlow","GoldRush",
+    "BullRun","SatoshiFan","TokenKing","BlockBet","ChainWin","DeFiDegen","ApeIn","WAGMI_Guy",
+    "PumpKing","MegaBets","RocketMan","StarPlayer","TopDog","EliteGamer","VIPPlayer","SharkBet",
+    "ThunderBet","NightOwl","FastCash","EasyMoney","SmartBet","WinStreak","HotHand","GoldenBoy",
+    "SilverFox","IronMan","StormBet","FireBet","IceCold","DarkHorse","WildCard","AceHigh",
+    "RoyalFlush","FullHouse","TripleX","DoubleDip","MaxBet","AllIn","NoLimit","HighStakes",
+    "DeepStack","ChipLeader","PotOdds","NutFlush","StraightUp","BlackJack","SlotKing","SpinMaster",
+    "ReelDeal","BonusHunt","FreeSpins","MegaWin","SuperNova","CosmicBet","GalaxyWin","NeonBet",
+    "PixelBet","CyberWin","MatrixBet","QuantumWin","TurboSpin","NitroBet","BlazeBet","PhoenixWin",
+    "DragonBet","TigerLuck","WolfPack","EagleEye","LionHeart","BearMarket","BullMarket","HawkEye",
+    "ViperBet","CobraWin","PantherBet","FalconWin","RavenBet","ShadowBet","GhostWin","PhantomBet",
+    "ZenMaster","KarmaBet","LotusWin","SamuraiBet","NinjaCash","ShogunWin","RoninBet","SenseiWin",
+    "OmegaBet","AlphaWin"
+];
+
+function generateFakeLeaderboard() {
+    // Generate 100 fake players with realistic stats
+    const fakes = FAKE_PLAYERS.map(name => {
+        const games = Math.floor(50 + Math.random() * 500);
+        const winRate = 0.4 + Math.random() * 0.25; // 40-65% win rate
+        const avgBet = 5 + Math.random() * 50;
+        const profit = (winRate - 0.5) * games * avgBet * (0.5 + Math.random());
+        return { name, profit: Math.round(profit * 100) / 100, games };
+    });
     
-    const sorted = Object.entries(users)
-        .map(([id, data]) => ({ id, name: data.name || '?', profit: data.totalProfit || 0, games: data.totalGames || 0 }))
-        .filter(u => u.games > 0)
-        .sort((a, b) => b.profit - a.profit)
-        .slice(0, 10);
+    // Sort by profit descending
+    fakes.sort((a, b) => b.profit - a.profit);
+    
+    // Make top players have impressive profits
+    fakes[0].profit = 5000 + Math.random() * 15000;
+    fakes[1].profit = 3000 + Math.random() * 8000;
+    fakes[2].profit = 2000 + Math.random() * 5000;
+    for (let i = 3; i < 10; i++) fakes[i].profit = 500 + Math.random() * 3000;
+    
+    // Re-sort
+    fakes.sort((a, b) => b.profit - a.profit);
+    return fakes;
+}
+
+// Cache fake leaderboard (regenerate every 24h)
+function getFakeLeaderboard() {
+    const cached = localStorage.getItem('lc_fake_lb');
+    if (cached) {
+        const data = JSON.parse(cached);
+        if (Date.now() - data.time < 86400000) return data.players; // 24h cache
+    }
+    const players = generateFakeLeaderboard();
+    localStorage.setItem('lc_fake_lb', JSON.stringify({ players, time: Date.now() }));
+    return players;
+}
+
+async function showLeaderboard() {
+    const fakePlayers = getFakeLeaderboard();
+    
+    // Also get real players from Firebase
+    const realUsers = await fbGet('users') || {};
+    const realPlayers = Object.entries(realUsers)
+        .map(([id, data]) => ({ name: data.name || 'Player', profit: data.totalProfit || 0, games: data.totalGames || 0, real: true }))
+        .filter(u => u.games > 0);
+    
+    // Merge real players into fake list (insert at appropriate positions)
+    let allPlayers = [...fakePlayers];
+    realPlayers.forEach(rp => {
+        const insertIdx = allPlayers.findIndex(fp => fp.profit < rp.profit);
+        if (insertIdx >= 0) allPlayers.splice(insertIdx, 0, rp);
+        else allPlayers.push(rp);
+    });
+    
+    // Show top 20
+    const top20 = allPlayers.slice(0, 20);
     
     const content = document.getElementById('content');
     content.innerHTML = `
-        <div class="section-title"><span>🏆</span> Leaderboard</div>
-        ${sorted.length === 0 ? '<p class="text-sm text-muted">No players yet.</p>' :
-          sorted.map((u, i) => `
-            <div class="history-item" style="${i<3?'border:1px solid var(--gold);':''}">
+        <div class="section-title"><span>🏆</span> Leaderboard — Top Players</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Updated in real-time • ${allPlayers.length} active players</div>
+        ${top20.map((u, i) => `
+            <div class="history-item" style="${i<3?'border:1px solid var(--gold);background:rgba(245,158,11,0.05);':''}${u.real?'border:1px solid var(--accent);':''}">
                 <div class="hi-left">
-                    <span class="hi-icon">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
-                    <div><div class="hi-game">${u.name}</div><div class="hi-time">${u.games} games</div></div>
+                    <span class="hi-icon" style="font-size:${i<3?'20px':'14px'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+                    <div>
+                        <div class="hi-game">${u.name} ${u.real?'<span style="color:var(--accent);font-size:10px;">⭐YOU</span>':''}</div>
+                        <div class="hi-time">${u.games} games played</div>
+                    </div>
                 </div>
-                <div class="hi-amount ${u.profit>=0?'win':'loss'}">${u.profit>=0?'+':''}${u.profit.toFixed(2)}</div>
+                <div class="hi-amount win" style="${i<3?'font-size:16px;':''}">+$${u.profit.toFixed(0)}</div>
             </div>
-          `).join('')}
-        <button class="play-button mt-20" onclick="switchTab('home')" style="background:var(--bg3)">⬅️ Back</button>
+        `).join('')}
+        <button class="play-button mt-20" onclick="switchTab('rewards')" style="background:var(--bg3)">⬅️ Back</button>
     `;
 }
 
@@ -504,10 +687,9 @@ function playSound(type) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FEATURE 5: JACKPOT POOL
+// FEATURE 5: JACKPOT POOL (Admin controlled)
 // ═══════════════════════════════════════════════════════════════
 const JACKPOT_CONTRIBUTION = 0.01; // 1% of each bet goes to jackpot
-const JACKPOT_WIN_CHANCE = 0.001; // 0.1% chance per game
 
 async function getJackpot() {
     const jp = await fbGet('jackpot/amount');
@@ -519,18 +701,9 @@ async function addToJackpot(amount) {
     await fbSet('jackpot/amount', current + (amount * JACKPOT_CONTRIBUTION));
 }
 
+// Jackpot is NOT auto-given. Admin triggers it manually via adminGiveJackpotNew()
 async function checkJackpotWin(bet) {
-    if (Math.random() < JACKPOT_WIN_CHANCE) {
-        const jackpotAmount = await getJackpot();
-        if (jackpotAmount > 10) { // Min jackpot $10
-            user.balance += jackpotAmount;
-            await fbSet('jackpot/amount', 0); // Reset jackpot
-            await saveUser();
-            updateBal();
-            return jackpotAmount;
-        }
-    }
-    return 0;
+    return 0; // Disabled auto-jackpot. Admin controls it.
 }
 
 async function renderJackpotBanner() {
@@ -539,7 +712,7 @@ async function renderJackpotBanner() {
         <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;border:1px solid rgba(245,158,11,0.3);">
             <div style="font-size:11px;color:var(--text3);">🎰 JACKPOT POOL</div>
             <div style="font-size:24px;font-weight:800;color:var(--gold);margin-top:4px;">$${jp.toFixed(2)}</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px;">1% of every bet • 0.1% chance to win</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;">1% of every bet • Random winner</div>
         </div>
     `;
 }
