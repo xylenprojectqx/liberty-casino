@@ -225,9 +225,6 @@ function renderProfile() {
             <div class="stat-card"><div class="sv">${wr}%</div><div class="sl">Win Rate</div></div>
             <div class="stat-card"><div class="sv">${user.totalProfit.toFixed(1)}</div><div class="sl">Profit</div></div>
         </div>
-        <div class="mt-20" style="text-align:center;">
-            <button class="play-button" onclick="forceAdmin()" style="background:var(--bg3);font-size:12px;padding:10px;">🔐 Admin Access</button>
-        </div>
     `;
 }
 
