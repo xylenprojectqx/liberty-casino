@@ -802,3 +802,473 @@ loadGameUI = function(id) {
         default: _origLoadGameUI2(id); break;
     }
 };
+
+// ═══════════════════════════════════════════════════════════════
+// ROULETTE — Canvas Spinning Wheel with Ball Physics
+// ═══════════════════════════════════════════════════════════════
+let rouletteCanvas, rouletteCtx, rouletteParticles;
+let rouletteData = { spinning: false, angle: 0, ballAngle: 0, result: null };
+
+const ROULETTE_NUMBERS = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+const ROULETTE_REDS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+
+function renderRoulette(body) {
+    body.innerHTML = `
+        <div id="roulette-container" style="width:100%;max-width:360px;margin:0 auto;position:relative;"></div>
+        <div id="roul-result-display" style="text-align:center;font-size:28px;font-weight:900;min-height:36px;margin:8px 0;"></div>
+        <div class="choice-row">
+            <button class="choice-btn" id="r-red" onclick="roulChoice='red';document.querySelectorAll('[id^=r-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')" style="background:rgba(229,57,53,0.2);border-color:#e53935;">
+                <div style="width:20px;height:20px;background:#e53935;border-radius:50%;margin:0 auto 4px;"></div><div style="font-size:12px;font-weight:700;">RED 2x</div>
+            </button>
+            <button class="choice-btn" id="r-grn" onclick="roulChoice='green';document.querySelectorAll('[id^=r-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')" style="background:rgba(67,160,71,0.2);border-color:#43a047;">
+                <div style="width:20px;height:20px;background:#43a047;border-radius:50%;margin:0 auto 4px;"></div><div style="font-size:12px;font-weight:700;">GREEN 36x</div>
+            </button>
+            <button class="choice-btn" id="r-blk" onclick="roulChoice='black';document.querySelectorAll('[id^=r-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')" style="background:rgba(33,33,33,0.4);border-color:#424242;">
+                <div style="width:20px;height:20px;background:#212121;border-radius:50%;margin:0 auto 4px;border:1px solid #616161;"></div><div style="font-size:12px;font-weight:700;">BLACK 2x</div>
+            </button>
+        </div>
+        ${betUI('roul')}
+        <button class="play-button" id="roul-btn" onclick="spinRoulettePremium()">🎯 SPIN ROULETTE</button>
+        <div id="roul-result" style="min-height:70px;margin-top:10px;"></div>`;
+    
+    const container = document.getElementById('roulette-container');
+    rouletteCanvas = createGameCanvas(container, 'roul-cv', 300, 300);
+    rouletteCtx = rouletteCanvas.getContext('2d');
+    rouletteParticles = new ParticleSystem();
+    drawRouletteWheel(0, -1);
+}
+
+function drawRouletteWheel(wheelAngle, ballPos) {
+    const ctx = rouletteCtx;
+    const w = rouletteCanvas.width, h = rouletteCanvas.height;
+    const cx = w/2, cy = h/2, radius = 130;
+    
+    ctx.clearRect(0, 0, w, h);
+    
+    // Dark background
+    ctx.fillStyle = '#0a0e17';
+    ctx.fillRect(0, 0, w, h);
+    
+    // Outer ring glow
+    ctx.shadowColor = '#f59e0b';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 8, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(245,158,11,0.3)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    
+    // Outer gold ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
+    const goldGrad = ctx.createLinearGradient(cx-radius, cy-radius, cx+radius, cy+radius);
+    goldGrad.addColorStop(0, '#f59e0b');
+    goldGrad.addColorStop(0.5, '#fbbf24');
+    goldGrad.addColorStop(1, '#d97706');
+    ctx.strokeStyle = goldGrad;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    
+    // Draw segments
+    const segAngle = (Math.PI * 2) / 37;
+    for (let i = 0; i < 37; i++) {
+        const startA = wheelAngle + i * segAngle;
+        const endA = startA + segAngle;
+        const num = ROULETTE_NUMBERS[i];
+        
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, startA, endA);
+        ctx.closePath();
+        
+        if (num === 0) ctx.fillStyle = '#43a047';
+        else if (ROULETTE_REDS.includes(num)) ctx.fillStyle = '#c62828';
+        else ctx.fillStyle = '#1a1a1a';
+        ctx.fill();
+        
+        // Segment border
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        
+        // Number text
+        const midA = startA + segAngle / 2;
+        const tx = cx + Math.cos(midA) * (radius - 20);
+        const ty = cy + Math.sin(midA) * (radius - 20);
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.rotate(midA + Math.PI/2);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 9px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText(num.toString(), 0, 0);
+        ctx.restore();
+    }
+    
+    // Inner circle
+    const innerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40);
+    innerGrad.addColorStop(0, '#2a2a4e');
+    innerGrad.addColorStop(1, '#0f0a2a');
+    ctx.beginPath();
+    ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+    ctx.fillStyle = innerGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Center logo
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 12px Inter';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LIBERTY', cx, cy);
+    
+    // Ball
+    if (ballPos >= 0) {
+        const ballA = wheelAngle + ballPos * segAngle + segAngle/2;
+        const ballR = radius - 10;
+        const bx = cx + Math.cos(ballA) * ballR;
+        const by = cy + Math.sin(ballA) * ballR;
+        
+        // Ball glow
+        ctx.shadowColor = 'white';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(bx, by, 6, 0, Math.PI * 2);
+        const ballGrad = ctx.createRadialGradient(bx-2, by-2, 0, bx, by, 6);
+        ballGrad.addColorStop(0, '#ffffff');
+        ballGrad.addColorStop(1, '#bdbdbd');
+        ctx.fillStyle = ballGrad;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+    
+    // Pointer (top)
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - radius - 12);
+    ctx.lineTo(cx - 8, cy - radius - 22);
+    ctx.lineTo(cx + 8, cy - radius - 22);
+    ctx.closePath();
+    ctx.fillStyle = '#f59e0b';
+    ctx.fill();
+    
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    
+    // Particles
+    rouletteParticles.update();
+    rouletteParticles.draw(ctx);
+}
+
+let roulChoice = null;
+
+function spinRoulettePremium() {
+    if (!roulChoice) return alert('Pick Red, Black, or Green!');
+    const bet = getBet('roul'); if (!bet) return;
+    document.getElementById('roul-btn').disabled = true;
+    document.getElementById('roul-result-display').textContent = '';
+    
+    // Determine result
+    const rand = Math.random();
+    let resultIdx;
+    if (rand < 0.027) resultIdx = 0; // Green (0)
+    else resultIdx = 1 + Math.floor(Math.random() * 36);
+    
+    const resultNum = ROULETTE_NUMBERS[resultIdx];
+    const isRed = ROULETTE_REDS.includes(resultNum);
+    const resultColor = resultNum === 0 ? 'green' : isRed ? 'red' : 'black';
+    
+    // Spin animation
+    let spinSpeed = 0.15;
+    let currentAngle = 0;
+    let ballIdx = Math.floor(Math.random() * 37);
+    let frame = 0;
+    const totalFrames = 180; // ~3 seconds at 60fps
+    
+    function spinFrame() {
+        frame++;
+        const progress = frame / totalFrames;
+        
+        // Decelerate
+        spinSpeed = 0.15 * (1 - Math.pow(progress, 2));
+        currentAngle += spinSpeed;
+        
+        // Ball moves opposite, slowing down
+        if (frame < totalFrames * 0.7) {
+            ballIdx = (ballIdx + 0.5) % 37;
+        } else {
+            // Ball settles on result
+            const targetBall = resultIdx;
+            const diff = targetBall - ballIdx;
+            ballIdx += diff * 0.05;
+        }
+        
+        drawRouletteWheel(currentAngle, Math.floor(ballIdx) % 37);
+        
+        if (frame < totalFrames) {
+            requestAnimationFrame(spinFrame);
+        } else {
+            // Final result
+            drawRouletteWheel(currentAngle, resultIdx);
+            
+            const won = roulChoice === resultColor;
+            const mult = roulChoice === 'green' ? 36 : 2;
+            const cx = rouletteCanvas.width/2, cy = rouletteCanvas.height/2;
+            
+            if (won) {
+                rouletteParticles.explode(cx, cy, 30, resultColor === 'red' ? ['#ef4444','#fbbf24','#ff8a65'] : resultColor === 'green' ? ['#43a047','#66bb6a','#fbbf24'] : ['#9e9e9e','#fbbf24','#e0e0e0']);
+                recordGame('Roulette', bet, true, bet * (mult - 1));
+                document.getElementById('roul-result-display').innerHTML = `<span style="color:${resultColor==='red'?'#ef4444':resultColor==='green'?'#43a047':'#9e9e9e'}">${resultNum}</span>`;
+                document.getElementById('roul-result').innerHTML = showWinResult(bet * mult);
+                showConfetti();
+                playSound(mult >= 36 ? 'jackpot' : 'win');
+            } else {
+                recordGame('Roulette', bet, false, -bet);
+                document.getElementById('roul-result-display').innerHTML = `<span style="color:${resultColor==='red'?'#ef4444':resultColor==='green'?'#43a047':'#9e9e9e'}">${resultNum}</span>`;
+                document.getElementById('roul-result').innerHTML = showLoseResult(bet);
+                playSound('lose');
+            }
+            
+            // Animate remaining particles
+            let pf = 0;
+            function particleAnim() { rouletteParticles.update(); drawRouletteWheel(currentAngle, resultIdx); rouletteParticles.draw(rouletteCtx); if(++pf<30) requestAnimationFrame(particleAnim); }
+            particleAnim();
+            
+            setTimeout(() => { document.getElementById('roul-btn').disabled = false; }, 2000);
+        }
+    }
+    
+    requestAnimationFrame(spinFrame);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PLINKO — Canvas Ball Drop with Physics
+// ═══════════════════════════════════════════════════════════════
+let plinkoCanvas, plinkoCtx, plinkoParticles;
+
+function renderPlinko(body) {
+    body.innerHTML = `
+        <div id="plinko-container" style="width:100%;max-width:360px;margin:0 auto;"></div>
+        <div style="text-align:center;margin:8px 0;">
+            <div id="plinko-result-display" style="font-size:28px;font-weight:900;color:var(--gold);min-height:36px;"></div>
+        </div>
+        <div class="choice-row">
+            <button class="choice-btn selected" id="pk-l" onclick="plinkoRisk='low';document.querySelectorAll('[id^=pk-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')" style="border-color:#43a047;">🟢 Low</button>
+            <button class="choice-btn" id="pk-m" onclick="plinkoRisk='med';document.querySelectorAll('[id^=pk-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')" style="border-color:#f59e0b;">🟡 Medium</button>
+            <button class="choice-btn" id="pk-h" onclick="plinkoRisk='high';document.querySelectorAll('[id^=pk-]').forEach(b=>b.classList.remove('selected'));this.classList.add('selected')" style="border-color:#e53935;">🔴 High</button>
+        </div>
+        ${betUI('plinko')}
+        <button class="play-button" id="plinko-btn" onclick="dropPlinkoPremium()">⚪ DROP BALL</button>
+        <div id="plinko-result" style="min-height:70px;margin-top:10px;"></div>`;
+    
+    const container = document.getElementById('plinko-container');
+    plinkoCanvas = createGameCanvas(container, 'plinko-cv', 340, 280);
+    plinkoCtx = plinkoCanvas.getContext('2d');
+    plinkoParticles = new ParticleSystem();
+    drawPlinkoBoard(-1);
+}
+
+let plinkoRisk = 'low';
+const PLINKO_ROWS = 12;
+const PLINKO_MULTS = {
+    low: [1.5, 1.2, 1.1, 1.0, 0.7, 0.5, 0.3, 0.5, 0.7, 1.0, 1.1, 1.2, 1.5],
+    med: [5, 3, 1.5, 1, 0.5, 0.3, 0.2, 0.3, 0.5, 1, 1.5, 3, 5],
+    high: [50, 25, 10, 5, 2, 0.2, 0.1, 0.2, 2, 5, 10, 25, 50],
+};
+
+function drawPlinkoBoard(ballRow, ballCol, highlightSlot) {
+    const ctx = plinkoCtx;
+    const w = plinkoCanvas.width, h = plinkoCanvas.height;
+    ctx.clearRect(0, 0, w, h);
+    
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#0f172a');
+    bg.addColorStop(1, '#1e293b');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    
+    const startY = 20;
+    const endY = h - 50;
+    const rowH = (endY - startY) / PLINKO_ROWS;
+    
+    // Draw pegs
+    for (let row = 0; row < PLINKO_ROWS; row++) {
+        const pegsInRow = row + 3;
+        const rowWidth = (pegsInRow - 1) * 24;
+        const startX = (w - rowWidth) / 2;
+        const y = startY + row * rowH;
+        
+        for (let col = 0; col < pegsInRow; col++) {
+            const x = startX + col * 24;
+            
+            // Peg glow
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            const pegGrad = ctx.createRadialGradient(x-1, y-1, 0, x, y, 4);
+            pegGrad.addColorStop(0, '#e0e0e0');
+            pegGrad.addColorStop(1, '#616161');
+            ctx.fillStyle = pegGrad;
+            ctx.fill();
+        }
+    }
+    
+    // Draw multiplier slots at bottom
+    const mults = PLINKO_MULTS[plinkoRisk];
+    const slotCount = mults.length;
+    const slotW = w / slotCount;
+    
+    for (let i = 0; i < slotCount; i++) {
+        const x = i * slotW;
+        const mult = mults[i];
+        
+        let color;
+        if (mult >= 10) color = '#e53935';
+        else if (mult >= 3) color = '#f59e0b';
+        else if (mult >= 1) color = '#43a047';
+        else color = '#455a64';
+        
+        const isHighlight = (highlightSlot === i);
+        
+        ctx.fillStyle = isHighlight ? color : `${color}44`;
+        ctx.fillRect(x + 1, h - 40, slotW - 2, 36);
+        
+        if (isHighlight) {
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 15;
+            ctx.fillRect(x + 1, h - 40, slotW - 2, 36);
+            ctx.shadowBlur = 0;
+        }
+        
+        ctx.strokeStyle = `${color}88`;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 1, h - 40, slotW - 2, 36);
+        
+        ctx.fillStyle = 'white';
+        ctx.font = `bold ${slotW > 28 ? 10 : 8}px Inter`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(mult + 'x', x + slotW/2, h - 22);
+    }
+    
+    // Draw ball
+    if (ballRow >= 0 && ballRow < PLINKO_ROWS) {
+        const pegsInRow = ballRow + 3;
+        const rowWidth = (pegsInRow - 1) * 24;
+        const startX = (w - rowWidth) / 2;
+        const bx = startX + ballCol * 24;
+        const by = startY + ballRow * rowH;
+        
+        ctx.shadowColor = '#fbbf24';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(bx, by, 7, 0, Math.PI * 2);
+        const ballGrad = ctx.createRadialGradient(bx-2, by-2, 0, bx, by, 7);
+        ballGrad.addColorStop(0, '#fff9c4');
+        ballGrad.addColorStop(1, '#f59e0b');
+        ctx.fillStyle = ballGrad;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+    
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    
+    plinkoParticles.update();
+    plinkoParticles.draw(ctx);
+}
+
+function dropPlinkoPremium() {
+    const bet = getBet('plinko'); if (!bet) return;
+    document.getElementById('plinko-btn').disabled = true;
+    document.getElementById('plinko-result-display').textContent = '';
+    document.getElementById('plinko-result').innerHTML = '';
+    
+    const mults = PLINKO_MULTS[plinkoRisk];
+    
+    // Simulate ball path
+    let col = 0; // Start at center-ish
+    const path = [];
+    for (let row = 0; row < PLINKO_ROWS; row++) {
+        path.push({ row, col: col + Math.floor((row + 3) / 2) });
+        col += Math.random() < 0.5 ? 0 : 1;
+    }
+    
+    // Final slot (weighted toward center for low risk)
+    const weights = mults.map((_, i) => Math.exp(-Math.pow((i - mults.length/2) / (mults.length/4), 2)));
+    const totalW = weights.reduce((a, b) => a + b);
+    let r = Math.random() * totalW, slotIdx = 0;
+    for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) { slotIdx = i; break; } }
+    
+    const mult = mults[slotIdx];
+    
+    // Animate ball dropping
+    let frame = 0;
+    const framesPerRow = 8;
+    
+    function dropFrame() {
+        const currentRow = Math.floor(frame / framesPerRow);
+        
+        if (currentRow < PLINKO_ROWS) {
+            const p = path[Math.min(currentRow, path.length - 1)];
+            drawPlinkoBoard(p.row, p.col, -1);
+            
+            // Bounce sound
+            if (frame % framesPerRow === 0) {
+                playSoundFX('sine', 400 + currentRow * 50, 0.05, 0.1);
+            }
+            
+            frame++;
+            requestAnimationFrame(dropFrame);
+        } else {
+            // Ball reached bottom
+            drawPlinkoBoard(-1, 0, slotIdx);
+            
+            const slotW = plinkoCanvas.width / mults.length;
+            const px = slotIdx * slotW + slotW/2;
+            const py = plinkoCanvas.height - 22;
+            plinkoParticles.explode(px, py, 15, mult >= 3 ? ['#fbbf24','#f59e0b','#ff8f00'] : ['#43a047','#66bb6a']);
+            
+            // Animate particles
+            let pf = 0;
+            function pAnim() { plinkoParticles.update(); drawPlinkoBoard(-1, 0, slotIdx); plinkoParticles.draw(plinkoCtx); if(++pf<20) requestAnimationFrame(pAnim); }
+            pAnim();
+            
+            document.getElementById('plinko-result-display').textContent = mult + 'x';
+            
+            const profit = bet * mult - bet;
+            if (profit >= 0) {
+                recordGame('Plinko', bet, true, profit);
+                document.getElementById('plinko-result').innerHTML = showWinResult(bet * mult);
+                if (mult >= 5) showConfetti();
+                playSound('win');
+            } else {
+                recordGame('Plinko', bet, false, profit);
+                document.getElementById('plinko-result').innerHTML = showLoseResult(-profit);
+                playSound('lose');
+            }
+            
+            setTimeout(() => { document.getElementById('plinko-btn').disabled = false; }, 1500);
+        }
+    }
+    
+    requestAnimationFrame(dropFrame);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXTEND OVERRIDE: Add Roulette and Plinko to premium
+// ═══════════════════════════════════════════════════════════════
+const _origLoadGameUI3 = loadGameUI;
+loadGameUI = function(id) {
+    const body = document.getElementById('game-body');
+    switch(id) {
+        case 'crash': renderCrash(body); break;
+        case 'slots': renderSlots(body); break;
+        case 'mines': renderMines(body); break;
+        case 'roulette': renderRoulette(body); break;
+        case 'plinko': renderPlinko(body); break;
+        default: _origLoadGameUI3(id); break;
+    }
+};
