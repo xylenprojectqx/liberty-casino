@@ -1258,7 +1258,7 @@ function dropPlinkoPremium() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// EXTEND OVERRIDE: Add Roulette and Plinko to premium
+// EXTEND OVERRIDE: Add premium games
 // ═══════════════════════════════════════════════════════════════
 const _origLoadGameUI3 = loadGameUI;
 loadGameUI = function(id) {
@@ -1267,7 +1267,6 @@ loadGameUI = function(id) {
         case 'crash': renderCrash(body); break;
         case 'slots': renderSlots(body); break;
         case 'mines': renderMines(body); break;
-        case 'roulette': renderRoulette(body); break;
         case 'plinko': renderPlinko(body); break;
         default: _origLoadGameUI3(id); break;
     }
