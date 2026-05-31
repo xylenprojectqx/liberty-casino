@@ -207,6 +207,4 @@ function cashAvReal(){
     },3000);
 }
 
-// Override
-const _origLoadAv=loadGameUI;
-loadGameUI=function(id){if(id==='aviator'){renderAviatorReal(document.getElementById('game-body'));return;}_origLoadAv(id);};
+// Override handled by game_router.js

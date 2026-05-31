@@ -249,6 +249,4 @@ function updateBjUI(){
     drawBjTable();
 }
 
-// Override
-const _origLoadBJ=loadGameUI;
-loadGameUI=function(id){if(id==='blackjack'){renderBlackjackReal(document.getElementById('game-body'));return;}_origLoadBJ(id);};
+// Override handled by game_router.js

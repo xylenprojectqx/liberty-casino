@@ -199,9 +199,4 @@ function showRltResult(){
     setTimeout(()=>{document.getElementById('rlt-btn').disabled=false;},2000);
 }
 
-// Override roulette in loadGameUI
-const _origLoadRlt = loadGameUI;
-loadGameUI = function(id) {
-    if (id === 'roulette') { renderRouletteReal(document.getElementById('game-body')); return; }
-    _origLoadRlt(id);
-};
+// Override handled by game_router.js

@@ -155,6 +155,4 @@ function flipCoinReal(){
     requestAnimationFrame(flipFrame);
 }
 
-// Override
-const _origLoadCF=loadGameUI;
-loadGameUI=function(id){if(id==='coinflip'){renderCoinFlipReal(document.getElementById('game-body'));return;}_origLoadCF(id);};
+// Override handled by game_router.js

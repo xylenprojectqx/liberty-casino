@@ -1257,17 +1257,4 @@ function dropPlinkoPremium() {
     requestAnimationFrame(dropFrame);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// EXTEND OVERRIDE: Add premium games
-// ═══════════════════════════════════════════════════════════════
-const _origLoadGameUI3 = loadGameUI;
-loadGameUI = function(id) {
-    const body = document.getElementById('game-body');
-    switch(id) {
-        case 'crash': renderCrash(body); break;
-        case 'slots': renderSlots(body); break;
-        case 'mines': renderMines(body); break;
-        case 'plinko': renderPlinko(body); break;
-        default: _origLoadGameUI3(id); break;
-    }
-};
+// Override handled by game_router.js
